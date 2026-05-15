@@ -10,7 +10,8 @@ type ApiSubmissionResponse = {
 };
 
 const productionApiUrl = 'https://pop-os.tail43dc9a.ts.net/api';
-const apiBaseUrl = (import.meta.env.VITE_CODED_API_URL ?? (import.meta.env.PROD ? productionApiUrl : '')).replace(/\/$/, '');
+const configuredApiUrl = import.meta.env.VITE_CODED_API_URL?.trim();
+const apiBaseUrl = (configuredApiUrl || (import.meta.env.PROD ? productionApiUrl : '')).replace(/\/$/, '');
 
 function apiUrl(path: string) {
   if (!apiBaseUrl) return path;
