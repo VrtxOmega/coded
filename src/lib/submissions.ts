@@ -3,11 +3,13 @@ const submissionsKey = 'coded:submissions';
 const lastSubmissionKey = 'coded:last-submission';
 
 export type SubmissionState = {
+  id?: number;
   repoUrl: string;
   demoUrl: string;
   category: string;
   notes: string;
   submittedAt: string;
+  status?: 'approved' | 'hidden' | 'deleted';
   github?: GitHubRepoMetadata;
   analysis?: RepositoryAnalysis;
 };

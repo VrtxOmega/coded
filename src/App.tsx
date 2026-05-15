@@ -19,6 +19,7 @@ import WaitlistPage from '@/pages/WaitlistPage';
 import PricingPage from '@/pages/PricingPage';
 import SavedPage from '@/pages/SavedPage';
 import NotFoundPage from '@/pages/NotFoundPage';
+import AdminPage from '@/pages/AdminPage';
 
 function HomePage() {
   return (
@@ -50,6 +51,7 @@ function App() {
         <Route path="/builders/:handle" element={<BuilderPage />} />
         <Route path="/pricing" element={<PricingPage />} />
         <Route path="/saved" element={<SavedPage />} />
+        <Route path="/admin" element={<AdminPage />} />
         <Route path="/waitlist" element={<WaitlistPage />} />
         <Route path="/info/:topic" element={<InfoPage />} />
         <Route path="*" element={<NotFoundPage />} />

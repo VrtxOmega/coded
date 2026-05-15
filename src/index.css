@@ -769,6 +769,95 @@
     color: #00e5ff;
   }
 
+  .backend-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: #7a7d8a;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.75rem;
+  }
+
+  .backend-status.online svg {
+    color: #00e5ff;
+  }
+
+  .backend-status.offline svg {
+    color: #ff0055;
+  }
+
+  .admin-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    align-items: end;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .admin-toolbar label {
+    display: grid;
+    gap: 0.45rem;
+    color: #9ea2b3;
+    font-size: 0.82rem;
+  }
+
+  .admin-toolbar input {
+    min-height: 48px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #0b0c0f;
+    color: #f8f8f8;
+    padding: 0 0.85rem;
+  }
+
+  .admin-message {
+    color: #b9bcc9;
+    padding: 0.8rem 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .admin-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 1rem;
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .admin-row strong {
+    display: block;
+    color: #f8f8f8;
+  }
+
+  .admin-row span,
+  .admin-row p {
+    color: #9ea2b3;
+  }
+
+  .admin-row p {
+    margin-top: 0.35rem;
+  }
+
+  .admin-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
+  }
+
+  .admin-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 38px;
+    border-radius: 8px;
+    padding: 0 0.75rem;
+    color: #f8f8f8;
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    background: rgba(255, 255, 255, 0.045);
+  }
+
   .ranking-row img {
     width: 92px;
     aspect-ratio: 16 / 10;
@@ -1340,9 +1429,16 @@
     }
 
     .ranking-toolbar,
-    .sponsored-strip {
+    .sponsored-strip,
+    .admin-toolbar,
+    .admin-row {
       align-items: stretch;
+      grid-template-columns: 1fr;
       flex-direction: column;
+    }
+
+    .admin-actions {
+      justify-content: flex-start;
     }
 
     .ranking-row {

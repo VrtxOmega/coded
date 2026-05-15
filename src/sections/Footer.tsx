@@ -1,6 +1,7 @@
 import { type FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { createSubmission, githubRepoPattern, saveSubmission } from '@/lib/submissions';
+import BackendStatus from '@/components/BackendStatus';
 
 type FooterLink =
   | { label: string; to: string; href?: never }
@@ -231,6 +232,7 @@ export default function Footer() {
             <span className="text-mono-data" style={{ color: '#4A4D5A' }}>
               &copy; 2026 Coded Inc.
             </span>
+            <BackendStatus />
             <div className="flex items-center gap-4">
               {[
                 ['GitHub', 'https://github.com'],

@@ -4,6 +4,14 @@ type ApiSubmissionsResponse = {
   submissions: SubmissionState[];
 };
 
+export type ApiHealth = {
+  ok: boolean;
+  totalSubmissions: number;
+  approvedSubmissions: number;
+  hiddenSubmissions: number;
+  lastWriteAt: string | null;
+};
+
 type ApiSubmissionResponse = {
   submission: SubmissionState;
   error?: string;
@@ -41,6 +49,10 @@ export async function fetchApiSubmissions() {
   return response?.submissions ?? null;
 }
 
+export async function fetchApiHealth() {
+  return await apiFetch<ApiHealth>('/api/health');
+}
+
 export async function createApiSubmission(input: {
   repoUrl: string;
   demoUrl: string;
@@ -50,6 +62,23 @@ export async function createApiSubmission(input: {
   const response = await apiFetch<ApiSubmissionResponse>('/api/submissions', {
     method: 'POST',
     body: JSON.stringify(input),
+  });
+
+  return response?.submission ?? null;
+}
+
+export async function fetchAdminSubmissions(adminToken: string) {
+  const response = await apiFetch<ApiSubmissionsResponse>('/api/admin/submissions', {
+    headers: { 'X-Admin-Token': adminToken },
+  });
+
+  return response?.submissions ?? null;
+}
+
+export async function moderateSubmission(id: number, action: 'approve' | 'hide' | 'delete', adminToken: string) {
+  const response = await apiFetch<ApiSubmissionResponse>(`/api/admin/submissions/${id}/${action}`, {
+    method: 'POST',
+    headers: { 'X-Admin-Token': adminToken },
   });
 
   return response?.submission ?? null;
