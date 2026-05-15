@@ -1,52 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router';
 import { ArrowUpRight, GitFork, MessageSquare, Star } from 'lucide-react';
+import { type Project } from '@/data/coded';
+import { useProjectCatalog } from '@/lib/project-catalog';
 
-const projects = [
-  {
-    slug: 'neural-sync',
-    rank: '#01',
-    title: 'NeuralSync',
-    builder: '@alexrivera',
-    tags: ['AI', 'Dashboard'],
-    image: './images/project-1.jpg',
-    score: 96.4,
-    delta: '+8.2',
-    summary: 'Open-source agent observability with replayable traces and policy checks.',
-    stats: ['91% tests', '18 reviews', 'A+ docs'],
-  },
-  {
-    slug: 'codeweaver',
-    rank: '#02',
-    title: 'CodeWeaver',
-    builder: '@sarakim',
-    tags: ['CLI', 'Rust'],
-    image: './images/project-2.jpg',
-    score: 93.1,
-    delta: '+4.7',
-    summary: 'A terminal-native code migration assistant with deterministic patch plans.',
-    stats: ['0 secrets', 'fast build', '12 reviews'],
-  },
-  {
-    slug: 'datapulse',
-    rank: '#03',
-    title: 'DataPulse',
-    builder: '@mikedev',
-    tags: ['Mobile', 'Analytics'],
-    image: './images/project-3.jpg',
-    score: 89.7,
-    delta: '+11.4',
-    summary: 'Realtime mobile analytics layer for indie products with privacy-first defaults.',
-    stats: ['demo live', '7 releases', 'B+ security'],
-  },
-];
+const filters = ['Top this week', 'AI Infrastructure', 'Developer Tools', 'Mobile Analytics', 'Security', 'Open source'];
 
 function ProjectCard({
   project,
   index,
   isVisible,
 }: {
-  project: (typeof projects)[0];
+  project: Project;
   index: number;
   isVisible: boolean;
 }) {
@@ -86,7 +51,7 @@ function ProjectCard({
             backdropFilter: 'blur(8px)',
           }}
         >
-          {project.rank}
+          #{String(project.rank).padStart(2, '0')}
         </div>
         {/* Score badge */}
         <div
@@ -107,7 +72,7 @@ function ProjectCard({
               {project.title}
             </h3>
             <p className="text-sm" style={{ color: '#7A7D8A' }}>
-              {project.builder}
+              @{project.handle}
             </p>
           </div>
           <ArrowUpRight
@@ -139,8 +104,8 @@ function ProjectCard({
         </div>
         <div className="project-signal-row">
           <span><Star size={14} /> {project.delta}</span>
-          <span><MessageSquare size={14} /> {project.stats[1]}</span>
-          <span><GitFork size={14} /> {project.stats[0]}</span>
+          <span><MessageSquare size={14} /> {project.stats.reviews} reviews</span>
+          <span><GitFork size={14} /> {project.stats.coverage} coverage</span>
         </div>
       </div>
     </Link>
@@ -149,7 +114,9 @@ function ProjectCard({
 
 export default function FeaturedProjects() {
   const sectionRef = useRef<HTMLElement>(null);
+  const projects = useProjectCatalog();
   const [isVisible, setIsVisible] = useState(false);
+  const [activeFilter, setActiveFilter] = useState(filters[0]);
 
   useEffect(() => {
     const el = sectionRef.current;
@@ -207,21 +174,35 @@ export default function FeaturedProjects() {
         </div>
 
         <div className="feed-toolbar mb-8">
-          {['Top this week', 'AI tools', 'Developer infra', 'Mobile', 'Security', 'Open source'].map((filter, index) => (
-            <button className={index === 0 ? 'active' : ''} key={filter}>{filter}</button>
+          {filters.map((filter) => (
+            <button
+              className={filter === activeFilter ? 'active' : ''}
+              key={filter}
+              type="button"
+              onClick={() => setActiveFilter(filter)}
+            >
+              {filter}
+            </button>
           ))}
         </div>
 
         {/* Project Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {projects.map((project, i) => (
-            <ProjectCard
-              key={project.title}
-              project={project}
-              index={i}
-              isVisible={isVisible}
-            />
-          ))}
+          {projects
+            .filter((project) => {
+              if (activeFilter === 'Top this week') return true;
+              if (activeFilter === 'Open source') return true;
+              return project.category === activeFilter;
+            })
+            .slice(0, 3)
+            .map((project, i) => (
+              <ProjectCard
+                key={project.title}
+                project={project}
+                index={i}
+                isVisible={isVisible}
+              />
+            ))}
         </div>
       </div>
     </section>

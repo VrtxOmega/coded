@@ -33,8 +33,9 @@ export default function Navigation() {
           {[
             ['Discover', '/discover'],
             ['Collections', '/collections'],
+            ['Saved', '/saved'],
             ['Rubric', '/rubric'],
-            ['Pricing', '/#pricing'],
+            ['Pricing', '/pricing'],
           ].map(([item, path]) => (
             <NavLink
               key={item}

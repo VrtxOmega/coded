@@ -1,0 +1,18 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["node"],
+    "rootDir": "src",
+    "outDir": ".test-dist"
+  },
+  "include": [
+    "src/lib/submissions.ts",
+    "src/lib/project-filters.ts",
+    "src/lib/*.test.ts"
+  ]
+}

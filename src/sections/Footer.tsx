@@ -1,25 +1,69 @@
-import { Link } from 'react-router';
+import { type FormEvent, useState } from 'react';
+import { Link, useNavigate } from 'react-router';
+import { createSubmission, githubRepoPattern, saveSubmission } from '@/lib/submissions';
 
-const footerColumns = [
+type FooterLink =
+  | { label: string; to: string; href?: never }
+  | { label: string; href: string; to?: never };
+
+const footerColumns: { title: string; links: FooterLink[] }[] = [
   {
     title: 'Product',
-    links: ['Rankings', 'Collections', 'API', 'Changelog'],
+    links: [
+      { label: 'Rankings', to: '/discover' },
+      { label: 'Collections', to: '/collections' },
+      { label: 'Saved Projects', to: '/saved' },
+      { label: 'Pricing', to: '/pricing' },
+      { label: 'API', to: '/info/api' },
+      { label: 'Changelog', to: '/info/changelog' },
+    ],
   },
   {
     title: 'Resources',
-    links: ['Documentation', 'Grading Criteria', 'FAQ', 'Blog'],
+    links: [
+      { label: 'Documentation', to: '/info/docs' },
+      { label: 'Grading Criteria', to: '/rubric' },
+      { label: 'FAQ', to: '/info/faq' },
+      { label: 'Blog', to: '/info/blog' },
+    ],
   },
   {
     title: 'Community',
-    links: ['Discord', 'Twitter/X', 'GitHub', 'Newsletter'],
+    links: [
+      { label: 'Discord', href: 'https://discord.com' },
+      { label: 'Twitter/X', href: 'https://x.com' },
+      { label: 'GitHub', href: 'https://github.com' },
+      { label: 'Newsletter', to: '/waitlist' },
+    ],
   },
   {
     title: 'Legal',
-    links: ['Privacy', 'Terms', 'Cookie Policy'],
+    links: [
+      { label: 'Privacy', to: '/info/privacy' },
+      { label: 'Terms', to: '/info/terms' },
+      { label: 'Cookie Policy', to: '/info/cookies' },
+    ],
   },
 ];
 
 export default function Footer() {
+  const navigate = useNavigate();
+  const [repoUrl, setRepoUrl] = useState('');
+  const [error, setError] = useState('');
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    if (!githubRepoPattern.test(repoUrl.trim())) {
+      setError('Use a full GitHub repo URL.');
+      return;
+    }
+
+    saveSubmission(createSubmission({ repoUrl }));
+    setError('');
+    navigate('/submit');
+  };
+
   return (
     <footer
       id="submit"
@@ -86,12 +130,20 @@ export default function Footer() {
                 Submit your GitHub repository and get a public scorecard built for adoption, credibility, and momentum.
               </p>
             </div>
-            <form className="repo-form">
+            <form className="repo-form" onSubmit={handleSubmit} noValidate>
               <label htmlFor="repo">Repository URL</label>
               <div>
-                <input id="repo" type="url" placeholder="https://github.com/you/project" />
-                <button type="button">Start analysis</button>
+                <input
+                  id="repo"
+                  type="url"
+                  value={repoUrl}
+                  onChange={(event) => setRepoUrl(event.target.value)}
+                  placeholder="https://github.com/you/project"
+                  aria-invalid={error ? 'true' : 'false'}
+                />
+                <button type="submit">Start analysis</button>
               </div>
+              {error && <p className="footer-form-error" role="alert">{error}</p>}
               <p>Public GitHub repo required. Dockerfile, README, and demo link improve score confidence.</p>
             </form>
           </div>
@@ -140,16 +192,30 @@ export default function Footer() {
                 </h4>
                 <ul className="space-y-3">
                   {column.links.map((link) => (
-                    <li key={link}>
-                      <a
-                        href="#"
-                        className="text-sm transition-colors duration-200"
-                        style={{ color: '#7A7D8A' }}
-                        onMouseEnter={(e) => (e.currentTarget.style.color = '#F8F8F8')}
-                        onMouseLeave={(e) => (e.currentTarget.style.color = '#7A7D8A')}
-                      >
-                        {link}
-                      </a>
+                    <li key={link.label}>
+                      {link.to ? (
+                        <Link
+                          to={link.to}
+                          className="text-sm transition-colors duration-200"
+                          style={{ color: '#7A7D8A' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = '#F8F8F8')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = '#7A7D8A')}
+                        >
+                          {link.label}
+                        </Link>
+                      ) : (
+                        <a
+                          href={link.href}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sm transition-colors duration-200"
+                          style={{ color: '#7A7D8A' }}
+                          onMouseEnter={(e) => (e.currentTarget.style.color = '#F8F8F8')}
+                          onMouseLeave={(e) => (e.currentTarget.style.color = '#7A7D8A')}
+                        >
+                          {link.label}
+                        </a>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -163,13 +229,19 @@ export default function Footer() {
             style={{ borderColor: '#1E2028' }}
           >
             <span className="text-mono-data" style={{ color: '#4A4D5A' }}>
-              &copy; 2025 Coded Inc.
+              &copy; 2026 Coded Inc.
             </span>
             <div className="flex items-center gap-4">
-              {['GitHub', 'Twitter', 'Discord'].map((social) => (
+              {[
+                ['GitHub', 'https://github.com'],
+                ['Twitter', 'https://x.com'],
+                ['Discord', 'https://discord.com'],
+              ].map(([social, href]) => (
                 <a
                   key={social}
-                  href="#"
+                  href={href}
+                  target="_blank"
+                  rel="noreferrer"
                   className="text-mono-data transition-colors duration-200"
                   style={{ color: '#4A4D5A' }}
                   onMouseEnter={(e) => (e.currentTarget.style.color = '#F8F8F8')}

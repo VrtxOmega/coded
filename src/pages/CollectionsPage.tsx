@@ -3,6 +3,15 @@ import { ArrowRight } from 'lucide-react';
 import Footer from '@/sections/Footer';
 import { collections } from '@/data/coded';
 
+const collectionFilters: Record<string, string> = {
+  'Agent Infrastructure': 'AI Infrastructure',
+  'CLI Tools Worth Installing': 'Developer Tools',
+  'Security Baseline': 'Security',
+  'Mobile Indie Stack': 'Mobile Analytics',
+  'Data Products': 'Workflow',
+  'Launch Week Climbers': 'All',
+};
+
 export default function CollectionsPage() {
   return (
     <>
@@ -26,7 +35,7 @@ export default function CollectionsPage() {
                   <h2>{collection.title}</h2>
                   <p>{collection.body}</p>
                   <span>{collection.count} projects</span>
-                  <Link to="/discover">Browse collection <ArrowRight size={16} /></Link>
+                  <Link to={`/discover?category=${encodeURIComponent(collectionFilters[collection.title] ?? 'All')}`}>Browse collection <ArrowRight size={16} /></Link>
                 </article>
               );
             })}

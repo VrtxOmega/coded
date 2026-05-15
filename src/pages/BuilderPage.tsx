@@ -1,11 +1,12 @@
 import { Link, useParams } from 'react-router';
 import { Github, MapPin, Star } from 'lucide-react';
 import Footer from '@/sections/Footer';
-import { getBuilderProjects, projects } from '@/data/coded';
+import { findBuilderProjects, useProjectCatalog } from '@/lib/project-catalog';
 
 export default function BuilderPage() {
   const { handle } = useParams();
-  const builderProjects = getBuilderProjects(handle);
+  const projects = useProjectCatalog();
+  const builderProjects = findBuilderProjects(projects, handle);
   const visibleProjects = builderProjects.length ? builderProjects : projects.slice(0, 2);
   const primary = visibleProjects[0];
 

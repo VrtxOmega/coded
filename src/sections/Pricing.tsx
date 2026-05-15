@@ -15,6 +15,7 @@ const plans = [
     price: '$9/mo',
     body: 'Project analytics, score history, profile badge, launch scheduling, and deeper rubric recommendations.',
     cta: 'Join waitlist',
+    to: '/waitlist',
   },
   {
     icon: Building2,
@@ -22,6 +23,7 @@ const plans = [
     price: 'Custom',
     body: 'Sponsored collections, hiring feeds, category sponsorship, API access, and ecosystem discovery pages.',
     cta: 'Talk to us',
+    to: '/waitlist',
   },
 ];
 
@@ -46,7 +48,7 @@ export default function Pricing() {
                 <h3>{plan.name}</h3>
                 <strong>{plan.price}</strong>
                 <p>{plan.body}</p>
-                <Link to={plan.name === 'Partner' ? '/collections' : '/submit'}>
+                <Link to={plan.to ?? '/submit'}>
                   {plan.cta}
                   <ArrowRight size={16} />
                 </Link>

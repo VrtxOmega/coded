@@ -120,6 +120,7 @@
   .btn-secondary {
     display: inline-flex;
     align-items: center;
+    gap: 0.55rem;
     min-height: 48px;
     padding: 0.85rem 1.1rem;
     border-radius: 8px;
@@ -129,6 +130,10 @@
     font-weight: 700;
     background: rgba(255, 255, 255, 0.04);
     transition: border-color 180ms ease, background 180ms ease;
+  }
+
+  button.btn-secondary {
+    cursor: pointer;
   }
 
   .btn-secondary:hover {
@@ -549,6 +554,10 @@
     margin-top: 0.7rem;
   }
 
+  .repo-form .footer-form-error {
+    color: #ffd5e1;
+  }
+
   .site-page {
     position: relative;
     z-index: 20;
@@ -702,7 +711,8 @@
     margin-top: 0.25rem;
   }
 
-  .ranking-toolbar button {
+  .ranking-toolbar button,
+  .sort-control {
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
@@ -711,6 +721,19 @@
     border-radius: 8px;
     padding: 0.65rem 0.8rem;
     white-space: nowrap;
+  }
+
+  .sort-control select {
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: #b9bcc9;
+    font: inherit;
+  }
+
+  .sort-control option {
+    background: #15171c;
+    color: #f8f8f8;
   }
 
   .ranking-list {
@@ -729,6 +752,21 @@
 
   .ranking-row:hover {
     background: rgba(255, 255, 255, 0.035);
+  }
+
+  .empty-results {
+    display: grid;
+    gap: 0.35rem;
+    padding: 2rem;
+    color: #9ea2b3;
+  }
+
+  .empty-results strong {
+    color: #f8f8f8;
+  }
+
+  .saved-empty svg {
+    color: #00e5ff;
   }
 
   .ranking-row img {
@@ -1018,6 +1056,57 @@
     font-weight: 800;
   }
 
+  .submission-card button:disabled {
+    cursor: wait;
+    opacity: 0.76;
+  }
+
+  .submission-message {
+    display: grid;
+    gap: 0.35rem;
+    margin-top: 1rem;
+    border-radius: 8px;
+    padding: 0.8rem 0.9rem;
+    font-size: 0.86rem;
+    line-height: 1.45;
+  }
+
+  .submission-message.error {
+    border: 1px solid rgba(255, 0, 85, 0.38);
+    background: rgba(255, 0, 85, 0.1);
+    color: #ffd5e1;
+  }
+
+  .submission-message.success {
+    border: 1px solid rgba(0, 229, 255, 0.28);
+    background: rgba(0, 229, 255, 0.09);
+    color: #d8faff;
+  }
+
+  .submission-message b {
+    color: #f8f8f8;
+  }
+
+  .submission-message a {
+    color: #00e5ff;
+    font-weight: 800;
+  }
+
+  .muted-action {
+    color: #7a7d8a;
+    cursor: default;
+  }
+
+  .spin-icon {
+    animation: spin 900ms linear infinite;
+  }
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
   .requirement-list {
     display: grid;
     gap: 0.65rem;
@@ -1089,6 +1178,35 @@
   .builder-summary-card {
     margin-top: 1rem;
     padding: 1.5rem;
+  }
+
+  .info-panel {
+    margin-top: 0;
+  }
+
+  .info-point-list {
+    display: grid;
+    gap: 0.75rem;
+  }
+
+  .info-point-list p {
+    display: flex;
+    gap: 0.55rem;
+    align-items: flex-start;
+  }
+
+  .info-point-list svg {
+    color: #00e5ff;
+    flex: 0 0 auto;
+    margin-top: 0.18rem;
+  }
+
+  .pricing-page .section-band {
+    padding-top: 3rem;
+  }
+
+  .pricing-page-hero {
+    padding-bottom: 2rem;
   }
 
   .collection-card a {

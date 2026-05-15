@@ -1,0 +1,20 @@
+[Unit]
+Description=Coded API backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/vrtxomega/apps/coded-api
+Environment=NODE_ENV=production
+Environment=CODED_API_HOST=127.0.0.1
+Environment=CODED_API_PORT=8787
+Environment=ALLOWED_ORIGINS=https://vrtxomega.github.io,http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003,http://localhost:3004
+ExecStart=/usr/bin/node server/index.mjs
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

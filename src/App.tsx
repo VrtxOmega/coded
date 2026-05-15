@@ -14,6 +14,11 @@ import SubmitPage from '@/pages/SubmitPage';
 import RubricPage from '@/pages/RubricPage';
 import CollectionsPage from '@/pages/CollectionsPage';
 import BuilderPage from '@/pages/BuilderPage';
+import InfoPage from '@/pages/InfoPage';
+import WaitlistPage from '@/pages/WaitlistPage';
+import PricingPage from '@/pages/PricingPage';
+import SavedPage from '@/pages/SavedPage';
+import NotFoundPage from '@/pages/NotFoundPage';
 
 function HomePage() {
   return (
@@ -43,6 +48,11 @@ function App() {
         <Route path="/rubric" element={<RubricPage />} />
         <Route path="/collections" element={<CollectionsPage />} />
         <Route path="/builders/:handle" element={<BuilderPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
+        <Route path="/saved" element={<SavedPage />} />
+        <Route path="/waitlist" element={<WaitlistPage />} />
+        <Route path="/info/:topic" element={<InfoPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </div>
   );

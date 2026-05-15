@@ -1,11 +1,31 @@
+import { useState } from 'react';
 import { Link, useParams } from 'react-router';
-import { ArrowLeft, ExternalLink, Github, MessageSquareText, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Bookmark, Check, ExternalLink, Github, MessageSquareText, ShieldCheck } from 'lucide-react';
 import Footer from '@/sections/Footer';
-import { getProject, projects } from '@/data/coded';
+import { findProject, useProjectCatalog } from '@/lib/project-catalog';
+
+function externalUrl(value: string) {
+  return value.startsWith('http') ? value : `https://${value}`;
+}
 
 export default function ProjectPage() {
   const { slug } = useParams();
-  const project = getProject(slug);
+  const projects = useProjectCatalog();
+  const project = findProject(projects, slug);
+  const repoUrl = externalUrl(project.repo);
+  const hasDemo = project.demo !== 'Demo not provided';
+  const demoUrl = hasDemo ? externalUrl(project.demo) : '';
+  const [savedProjects, setSavedProjects] = useState<string[]>(() => JSON.parse(window.localStorage.getItem('coded:saved-projects') ?? '[]') as string[]);
+  const isSaved = savedProjects.includes(project.slug);
+
+  const toggleSaved = () => {
+    const nextSavedProjects = savedProjects.includes(project.slug)
+      ? savedProjects.filter((item) => item !== project.slug)
+      : [...savedProjects, project.slug];
+
+    window.localStorage.setItem('coded:saved-projects', JSON.stringify(nextSavedProjects));
+    setSavedProjects(nextSavedProjects);
+  };
 
   return (
     <>
@@ -19,9 +39,17 @@ export default function ProjectPage() {
                 <h1 className="text-h2 text-text-primary mt-4 mb-4">{project.title}</h1>
                 <p className="text-body" style={{ color: '#B9BCC9', maxWidth: 760 }}>{project.summary}</p>
                 <div className="project-actions">
-                  <a className="btn-primary" href="#"><Github size={18} /> View repository</a>
-                  <a className="btn-secondary" href="#">Live demo <ExternalLink size={16} /></a>
+                  <a className="btn-primary" href={repoUrl} target="_blank" rel="noreferrer"><Github size={18} /> View repository</a>
+                  {hasDemo ? (
+                    <a className="btn-secondary" href={demoUrl} target="_blank" rel="noreferrer">Live demo <ExternalLink size={16} /></a>
+                  ) : (
+                    <span className="btn-secondary muted-action">Demo pending</span>
+                  )}
                   <Link className="btn-secondary" to={`/builders/${project.handle}`}>Builder profile</Link>
+                  <button className="btn-secondary" type="button" onClick={toggleSaved}>
+                    {isSaved ? <Check size={16} /> : <Bookmark size={16} />}
+                    {isSaved ? 'Saved' : 'Save project'}
+                  </button>
                 </div>
               </div>
               <div className="detail-score-card">
