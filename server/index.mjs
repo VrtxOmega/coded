@@ -41,6 +41,19 @@ function json(request, response, status, body) {
   response.end(JSON.stringify(body));
 }
 
+function jsonAttachment(request, response, filename, body) {
+  const origin = corsOrigin(request);
+  response.writeHead(200, {
+    'Content-Type': 'application/json',
+    'Content-Disposition': `attachment; filename="${filename}"`,
+    ...(origin ? { 'Access-Control-Allow-Origin': origin } : {}),
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Admin-Token',
+    'Vary': 'Origin',
+  });
+  response.end(JSON.stringify(body, null, 2));
+}
+
 function requestIp(request) {
   const forwarded = request.headers['x-forwarded-for'];
   if (typeof forwarded === 'string' && forwarded) return forwarded.split(',')[0].trim();
@@ -207,6 +220,14 @@ function healthStats() {
   };
 }
 
+function exportData() {
+  return {
+    exportedAt: new Date().toISOString(),
+    health: healthStats(),
+    submissions: readSubmissions({ includeHidden: true }),
+  };
+}
+
 async function fetchGithubRepository(repoUrl) {
   const repoName = getRepoName(repoUrl);
   if (!repoName) return null;
@@ -317,6 +338,11 @@ const server = createServer(async (request, response) => {
     if (request.method === 'GET' && (url.pathname === '/api/admin/submissions' || url.pathname === '/admin/submissions')) {
       if (!requireAdmin(request, response)) return;
       return json(request, response, 200, { submissions: readSubmissions({ includeHidden: true }) });
+    }
+
+    if (request.method === 'GET' && (url.pathname === '/api/admin/export' || url.pathname === '/admin/export')) {
+      if (!requireAdmin(request, response)) return;
+      return jsonAttachment(request, response, `coded-export-${new Date().toISOString().slice(0, 10)}.json`, exportData());
     }
 
     const adminStatusMatch = url.pathname.match(/^\/(?:api\/)?admin\/submissions\/(\d+)\/(approve|hide|delete)$/);

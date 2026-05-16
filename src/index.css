@@ -788,7 +788,7 @@
 
   .admin-toolbar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 1rem;
     align-items: end;
     padding: 1rem;
@@ -815,6 +815,17 @@
     color: #b9bcc9;
     padding: 0.8rem 1rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .admin-hint {
+    color: #7a7d8a;
+    padding: 0.8rem 1rem;
+    font-size: 0.84rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  }
+
+  .admin-hint code {
+    color: #d8faff;
   }
 
   .admin-row {

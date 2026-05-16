@@ -36,6 +36,7 @@ The backend stores submissions in `data/coded.sqlite`. It migrates old `data/sub
 Admin endpoints:
 
 - `GET /api/admin/submissions`
+- `GET /api/admin/export`
 - `POST /api/admin/submissions/:id/approve`
 - `POST /api/admin/submissions/:id/hide`
 - `POST /api/admin/submissions/:id/delete`
@@ -44,6 +45,40 @@ Send the token with:
 
 ```text
 X-Admin-Token: <CODED_ADMIN_TOKEN>
+```
+
+## Backups
+
+The live deployment includes a user timer:
+
+- `coded-api-backup.timer`
+- `coded-api-backup.service`
+
+It runs daily around `03:17` and writes timestamped archives to:
+
+```text
+/home/vrtxomega/backups/coded-api
+```
+
+Each archive includes:
+
+- `data/coded.sqlite`
+- `admin-token.txt`
+- `coded-api.service`
+- `coded-api.service.d/secrets.conf`
+
+Archives older than 14 days are deleted by the backup script.
+
+Manual backup:
+
+```bash
+systemctl --user start coded-api-backup.service
+```
+
+List backups:
+
+```bash
+ls -lh /home/vrtxomega/backups/coded-api
 ```
 
 ## Secret rules

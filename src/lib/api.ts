@@ -83,3 +83,26 @@ export async function moderateSubmission(id: number, action: 'approve' | 'hide' 
 
   return response?.submission ?? null;
 }
+
+export function adminExportUrl() {
+  return apiUrl('/api/admin/export');
+}
+
+export async function downloadAdminExport(adminToken: string) {
+  const response = await fetch(adminExportUrl(), {
+    headers: { 'X-Admin-Token': adminToken },
+  });
+
+  if (!response.ok) return false;
+
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `coded-export-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+  return true;
+}

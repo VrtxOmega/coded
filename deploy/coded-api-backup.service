@@ -1,0 +1,6 @@
+[Unit]
+Description=Back up Coded API data and service configuration
+
+[Service]
+Type=oneshot
+ExecStart=/home/vrtxomega/apps/coded-api/deploy/coded-api-backup.sh

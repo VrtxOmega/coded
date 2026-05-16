@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react';
-import { Check, EyeOff, Shield, Trash2 } from 'lucide-react';
+import { Check, Download, EyeOff, Shield, Trash2 } from 'lucide-react';
 import Footer from '@/sections/Footer';
-import { fetchAdminSubmissions, moderateSubmission } from '@/lib/api';
+import { downloadAdminExport, fetchAdminSubmissions, moderateSubmission } from '@/lib/api';
 import { getRepoName, type SubmissionState } from '@/lib/submissions';
 
 export default function AdminPage() {
@@ -59,7 +59,16 @@ export default function AdminPage() {
                 <input value={token} onChange={(event) => setToken(event.target.value)} type="password" placeholder="Server admin token" />
               </label>
               <button className="btn-primary" type="submit"><Shield size={16} /> Load queue</button>
+              <button className="btn-secondary" type="button" onClick={async () => {
+                const ok = await downloadAdminExport(token);
+                setMessage(ok ? 'Export downloaded.' : 'Export failed.');
+              }} disabled={!token}>
+                <Download size={16} /> Export JSON
+              </button>
             </form>
+            <div className="admin-hint">
+              Export downloads all non-deleted submissions as JSON using the admin token for this session.
+            </div>
             {message && <div className="admin-message">{message}</div>}
             <div className="ranking-list">
               {submissions.map((submission) => (
