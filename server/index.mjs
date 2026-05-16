@@ -1,9 +1,11 @@
 import { createServer } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { mkdir, readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { DatabaseSync } from 'node:sqlite';
+import { analyzeRepository, getRepoName } from './analyzer.mjs';
 
 const rootDir = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dataFile = resolve(rootDir, 'data', 'submissions.json');
@@ -15,11 +17,15 @@ const maxBodyBytes = Number(process.env.MAX_BODY_BYTES ?? 16_384);
 const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000);
 const rateLimitMax = Number(process.env.RATE_LIMIT_MAX ?? 10);
 const adminToken = process.env.CODED_ADMIN_TOKEN ?? '';
+const githubClientId = process.env.GITHUB_CLIENT_ID ?? '';
+const githubClientSecret = process.env.GITHUB_CLIENT_SECRET ?? '';
 const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? '*')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
 const rateBuckets = new Map();
+const oauthStates = new Map();
+const githubSessions = new Map();
 let db;
 
 function corsOrigin(request) {
@@ -35,7 +41,7 @@ function json(request, response, status, body) {
     'Content-Type': 'application/json',
     ...(origin ? { 'Access-Control-Allow-Origin': origin } : {}),
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Admin-Token',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Admin-Token,X-Coded-Session',
     'Vary': 'Origin',
   });
   response.end(JSON.stringify(body));
@@ -48,7 +54,7 @@ function jsonAttachment(request, response, filename, body) {
     'Content-Disposition': `attachment; filename="${filename}"`,
     ...(origin ? { 'Access-Control-Allow-Origin': origin } : {}),
     'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type,X-Admin-Token',
+    'Access-Control-Allow-Headers': 'Content-Type,X-Admin-Token,X-Coded-Session',
     'Vary': 'Origin',
   });
   response.end(JSON.stringify(body, null, 2));
@@ -96,9 +102,22 @@ function requireAdmin(request, response) {
   return true;
 }
 
-function getRepoName(repoUrl) {
-  const match = repoUrl.trim().match(githubRepoPattern);
-  return match ? `${match[1]}/${match[2]}` : '';
+function sessionFromRequest(request) {
+  const token = request.headers['x-coded-session'];
+  if (typeof token !== 'string') return null;
+
+  const session = githubSessions.get(token);
+  if (!session || session.expiresAt < Date.now()) {
+    if (session) githubSessions.delete(token);
+    return null;
+  }
+
+  return session;
+}
+
+function authRedirect(response, target) {
+  response.writeHead(302, { Location: target });
+  response.end();
 }
 
 async function readJsonBody(request) {
@@ -201,6 +220,20 @@ function updateSubmissionStatus(id, status) {
   return getSubmissionById(id);
 }
 
+function updateSubmissionPayload(id, submission) {
+  const existing = getSubmissionById(id);
+  if (!existing) return null;
+
+  const payload = JSON.stringify({ ...submission, status: undefined, id: undefined });
+  db.prepare('UPDATE submissions SET payload = ?, status = ?, updated_at = ? WHERE id = ?').run(
+    payload,
+    submission.status ?? existing.status ?? 'approved',
+    new Date().toISOString(),
+    id,
+  );
+  return getSubmissionById(id);
+}
+
 function healthStats() {
   const row = db.prepare(`
     SELECT
@@ -228,80 +261,66 @@ function exportData() {
   };
 }
 
-async function fetchGithubRepository(repoUrl) {
-  const repoName = getRepoName(repoUrl);
-  if (!repoName) return null;
+async function exchangeGithubCode(code) {
+  if (!githubClientId || !githubClientSecret) return null;
 
-  const response = await fetch(`https://api.github.com/repos/${repoName}`, {
+  const tokenResponse = await fetch('https://github.com/login/oauth/access_token', {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      'User-Agent': 'coded-github-oauth',
+    },
+    body: JSON.stringify({
+      client_id: githubClientId,
+      client_secret: githubClientSecret,
+      code,
+    }),
+  });
+  if (!tokenResponse.ok) return null;
+
+  const tokenPayload = await tokenResponse.json();
+  if (!tokenPayload.access_token) return null;
+
+  const userResponse = await fetch('https://api.github.com/user', {
     headers: {
       Accept: 'application/vnd.github+json',
-      'User-Agent': 'coded-local-analyzer',
-      ...(process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}),
+      Authorization: `Bearer ${tokenPayload.access_token}`,
+      'User-Agent': 'coded-github-oauth',
     },
   });
+  if (!userResponse.ok) return null;
 
-  if (!response.ok) return null;
-  const repo = await response.json();
-
+  const user = await userResponse.json();
   return {
-    name: repo.name ?? repoName.split('/')[1],
-    fullName: repo.full_name ?? repoName,
-    description: repo.description ?? '',
-    homepage: repo.homepage ?? '',
-    language: repo.language ?? '',
-    stars: repo.stargazers_count ?? 0,
-    forks: repo.forks_count ?? 0,
-    openIssues: repo.open_issues_count ?? 0,
-    license: repo.license?.spdx_id ?? repo.license?.name ?? '',
-    defaultBranch: repo.default_branch ?? 'main',
-    pushedAt: repo.pushed_at ?? '',
+    accessToken: tokenPayload.access_token,
+    user: {
+      login: user.login,
+      id: user.id,
+      avatarUrl: user.avatar_url,
+      htmlUrl: user.html_url,
+    },
   };
 }
 
-async function githubFileExists(repoName, path) {
-  const response = await fetch(`https://api.github.com/repos/${repoName}/contents/${path}`, {
+async function verifiedRepoPermission(repoUrl, session) {
+  const repoName = getRepoName(repoUrl);
+  if (!repoName || !session?.accessToken || !session.user?.login) return false;
+
+  const response = await fetch(`https://api.github.com/repos/${repoName}/collaborators/${session.user.login}/permission`, {
     headers: {
       Accept: 'application/vnd.github+json',
-      'User-Agent': 'coded-local-analyzer',
-      ...(process.env.GITHUB_TOKEN ? { Authorization: `Bearer ${process.env.GITHUB_TOKEN}` } : {}),
+      Authorization: `Bearer ${session.accessToken}`,
+      'User-Agent': 'coded-github-oauth',
     },
   });
+  if (!response.ok) return false;
 
-  return response.ok;
+  const payload = await response.json();
+  return ['admin', 'maintain', 'write'].includes(payload.permission);
 }
 
-async function analyzeRepository(repoUrl) {
-  const repoName = getRepoName(repoUrl);
-  const github = await fetchGithubRepository(repoUrl);
-  if (!repoName || !github) return { github, analysis: null };
-
-  const checks = {
-    readme: await githubFileExists(repoName, 'README.md'),
-    license: Boolean(github.license) || await githubFileExists(repoName, 'LICENSE'),
-    dockerfile: await githubFileExists(repoName, 'Dockerfile'),
-    packageJson: await githubFileExists(repoName, 'package.json'),
-    workflow: await githubFileExists(repoName, '.github/workflows'),
-  };
-
-  const passed = Object.values(checks).filter(Boolean).length;
-
-  return {
-    github,
-    analysis: {
-      checkedAt: new Date().toISOString(),
-      checks,
-      confidence: Number((0.45 + passed * 0.1).toFixed(2)),
-      recommendations: [
-        !checks.readme && 'Add a README with install, usage, screenshots, and architecture notes.',
-        !checks.license && 'Add a license so adopters know how they can use the project.',
-        !checks.dockerfile && 'Add a Dockerfile or document a reproducible build command.',
-        !checks.workflow && 'Add CI so tests and scans are visible before adoption.',
-      ].filter(Boolean),
-    },
-  };
-}
-
-function createSubmission(body, enriched) {
+function createSubmission(body, enriched, submitter = null) {
   const notes = (body.notes ?? '').trim().slice(0, 500);
   const demoUrl = (body.demoUrl ?? '').trim().slice(0, 300);
 
@@ -314,6 +333,7 @@ function createSubmission(body, enriched) {
     status: 'approved',
     github: enriched.github ?? undefined,
     analysis: enriched.analysis ?? undefined,
+    submitter: submitter ?? undefined,
   };
 }
 
@@ -329,6 +349,47 @@ const server = createServer(async (request, response) => {
 
     if (request.method === 'GET' && (url.pathname === '/api/health' || url.pathname === '/health')) {
       return json(request, response, 200, { ok: true, ...healthStats() });
+    }
+
+    if (request.method === 'GET' && (url.pathname === '/api/auth/github/start' || url.pathname === '/auth/github/start')) {
+      if (!githubClientId || !githubClientSecret) {
+        return json(request, response, 503, { error: 'GitHub OAuth is not configured.' });
+      }
+
+      const state = randomUUID();
+      const returnTo = url.searchParams.get('returnTo') || '/submit';
+      oauthStates.set(state, { returnTo, expiresAt: Date.now() + 10 * 60_000 });
+      const params = new URLSearchParams({
+        client_id: githubClientId,
+        state,
+        scope: 'read:user public_repo',
+      });
+      return authRedirect(response, `https://github.com/login/oauth/authorize?${params.toString()}`);
+    }
+
+    if (request.method === 'GET' && (url.pathname === '/api/auth/github/callback' || url.pathname === '/auth/github/callback')) {
+      const state = url.searchParams.get('state') ?? '';
+      const code = url.searchParams.get('code') ?? '';
+      const savedState = oauthStates.get(state);
+      oauthStates.delete(state);
+      if (!savedState || savedState.expiresAt < Date.now() || !code) {
+        return json(request, response, 400, { error: 'Invalid GitHub OAuth state.' });
+      }
+
+      const exchanged = await exchangeGithubCode(code);
+      if (!exchanged) return json(request, response, 502, { error: 'GitHub OAuth exchange failed.' });
+
+      const sessionToken = randomUUID();
+      githubSessions.set(sessionToken, { ...exchanged, expiresAt: Date.now() + 7 * 24 * 60 * 60_000 });
+      const redirectUrl = new URL(savedState.returnTo, `http://${request.headers.host}`);
+      redirectUrl.searchParams.set('coded_session', sessionToken);
+      redirectUrl.searchParams.set('github_login', exchanged.user.login);
+      return authRedirect(response, redirectUrl.toString());
+    }
+
+    if (request.method === 'GET' && (url.pathname === '/api/auth/github/me' || url.pathname === '/auth/github/me')) {
+      const session = sessionFromRequest(request);
+      return json(request, response, session ? 200 : 401, session ? { user: session.user } : { error: 'GitHub session required.' });
     }
 
     if (request.method === 'GET' && (url.pathname === '/api/submissions' || url.pathname === '/submissions')) {
@@ -355,6 +416,22 @@ const server = createServer(async (request, response) => {
       return json(request, response, 200, { submission });
     }
 
+    const adminReanalyzeMatch = url.pathname.match(/^\/(?:api\/)?admin\/submissions\/(\d+)\/reanalyze$/);
+    if (request.method === 'POST' && adminReanalyzeMatch) {
+      if (!requireAdmin(request, response)) return;
+
+      const existing = getSubmissionById(Number(adminReanalyzeMatch[1]));
+      if (!existing) return json(request, response, 404, { error: 'Submission not found.' });
+
+      const enriched = await analyzeRepository(existing.repoUrl);
+      const updated = updateSubmissionPayload(Number(adminReanalyzeMatch[1]), {
+        ...existing,
+        github: enriched.github ?? existing.github,
+        analysis: enriched.analysis ?? existing.analysis,
+      });
+      return json(request, response, 200, { submission: updated });
+    }
+
     if (request.method === 'POST' && (url.pathname === '/api/submissions' || url.pathname === '/submissions')) {
       const body = await readJsonBody(request);
       if (!body.repoUrl || !githubRepoPattern.test(body.repoUrl.trim())) {
@@ -362,7 +439,10 @@ const server = createServer(async (request, response) => {
       }
 
       const enriched = await analyzeRepository(body.repoUrl.trim());
-      const submission = createSubmission(body, enriched);
+      const session = sessionFromRequest(request);
+      const verifiedOwner = await verifiedRepoPermission(body.repoUrl.trim(), session);
+      const submitter = session ? { ...session.user, verifiedOwner } : null;
+      const submission = createSubmission(body, enriched, submitter);
       const row = upsertSubmission(submission);
       return json(request, response, 201, { submission: serializeSubmission(row) });
     }

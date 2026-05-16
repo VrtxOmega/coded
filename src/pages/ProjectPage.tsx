@@ -3,15 +3,21 @@ import { Link, useParams } from 'react-router';
 import { ArrowLeft, Bookmark, Check, ExternalLink, Github, MessageSquareText, ShieldCheck } from 'lucide-react';
 import Footer from '@/sections/Footer';
 import { findProject, useProjectCatalog } from '@/lib/project-catalog';
+import { type AnalysisDimension } from '@/lib/submissions';
 
 function externalUrl(value: string) {
   return value.startsWith('http') ? value : `https://${value}`;
+}
+
+function dimensionLabel(value: string) {
+  return value.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase());
 }
 
 export default function ProjectPage() {
   const { slug } = useParams();
   const projects = useProjectCatalog();
   const project = findProject(projects, slug);
+  const dimensions = project.analysis?.dimensions ? Object.entries(project.analysis.dimensions) as [string, AnalysisDimension][] : [];
   const repoUrl = externalUrl(project.repo);
   const hasDemo = project.demo !== 'Demo not provided';
   const demoUrl = hasDemo ? externalUrl(project.demo) : '';
@@ -93,6 +99,23 @@ export default function ProjectPage() {
                   </div>
                 </div>
               </div>
+
+              {dimensions.length > 0 && (
+                <div className="analysis-panel">
+                  <h2>Weighted analyzer dimensions</h2>
+                  <div className="dimension-grid">
+                    {dimensions.map(([key, dimension]) => (
+                      <article className="dimension-card" key={key}>
+                        <div>
+                          <span>{dimensionLabel(key)}</span>
+                          <strong>{dimension.score}</strong>
+                        </div>
+                        <p>{dimension.evidence[0] ?? dimension.recommendation}</p>
+                      </article>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <aside className="project-sidebar">
@@ -112,6 +135,14 @@ export default function ProjectPage() {
                   </div>
                 ))}
               </div>
+              {project.analysis?.evidence?.length ? (
+                <div className="sidebar-card">
+                  <h3>Analyzer evidence</h3>
+                  <ol className="timeline-list">
+                    {project.analysis.evidence.map((item) => <li key={item}>{item}</li>)}
+                  </ol>
+                </div>
+              ) : null}
               <div className="sidebar-card">
                 <h3>Timeline</h3>
                 <ol className="timeline-list">

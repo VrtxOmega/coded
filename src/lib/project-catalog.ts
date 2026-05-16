@@ -36,11 +36,17 @@ export function projectFromSubmission(submission: SubmissionState, index = 0): P
   const analysis = submission.analysis;
   const metadataBoost = github ? Math.min(8, Math.log10(Math.max(1, github.stars + github.forks)) * 2.5) : 0;
   const analysisBoost = analysis ? analysis.confidence * 10 : 0;
-  const score = Number((64 + (hash % 220) / 10 + metadataBoost + analysisBoost).toFixed(1));
+  const score = analysis?.score ?? Number((64 + (hash % 220) / 10 + metadataBoost + analysisBoost).toFixed(1));
   const hasDemo = Boolean(submission.demoUrl || github?.homepage);
   const hasNotes = Boolean(submission.notes);
   const category = submission.category || 'Developer Tools';
   const coverage = `${58 + (hash % 31)}%`;
+  const passedChecks = analysis ? Object.values(analysis.checks).filter(Boolean).length : 0;
+  const strengths = analysis?.dimensions
+    ? Object.entries(analysis.dimensions)
+        .filter(([, dimension]) => dimension.score >= 78)
+        .map(([key, dimension]) => `${key.replace(/([A-Z])/g, ' $1').replace(/^./, (letter) => letter.toUpperCase())}: ${dimension.evidence[0] ?? 'strong repository signal detected'}`)
+    : [];
 
   return {
     slug: slugify(`${owner}-${repo}`),
@@ -51,9 +57,9 @@ export function projectFromSubmission(submission: SubmissionState, index = 0): P
     category,
     image: `./images/project-${(hash % 3) + 1}.jpg`,
     score,
-    delta: '+0.0',
-    stage: analysis ? 'Analyzed' : github ? 'Repository fetched' : 'Analysis queued',
-    tags: [...(categoryTags[category] ?? ['Submitted']), analysis ? 'Analyzed' : 'Pending'],
+    delta: analysis ? 'fresh analysis' : '+0.0',
+    stage: analysis?.version === 2 ? 'Scorecard generated' : analysis ? 'Analyzed' : github ? 'Repository fetched' : 'Analysis queued',
+    tags: [...(categoryTags[category] ?? ['Submitted']), analysis?.version === 2 ? 'Scored' : analysis ? 'Analyzed' : 'Pending'],
     summary: submission.notes || github?.description || `${titleize(repo)} is queued for Coded analysis from ${repoName || submission.repoUrl}.`,
     repo: submission.repoUrl.replace(/^https?:\/\//, ''),
     demo: hasDemo ? (submission.demoUrl || github?.homepage || '').replace(/^https?:\/\//, '') : 'Demo not provided',
@@ -61,36 +67,37 @@ export function projectFromSubmission(submission: SubmissionState, index = 0): P
       stars: github?.stars ?? 0,
       saves: 0,
       reviews: 0,
-      tests: analysis?.checks.workflow ? 'CI found' : 'Pending',
+      tests: analysis?.checks.workflow ? 'CI found' : analysis?.dimensions?.testing?.score ? `${analysis.dimensions.testing.score}/100` : 'Pending',
       coverage,
       releases: github?.forks ?? 0,
     },
     breakdown: {
-      ai: Number((score - 3.2).toFixed(1)),
-      community: 0,
-      activity: github?.pushedAt ? 82 : 50 + (hash % 30),
-      completeness: analysis ? Number((analysis.confidence * 100).toFixed(0)) : hasDemo && hasNotes && github ? 84 : hasDemo || hasNotes || github ? 72 : 58,
+      ai: analysis?.aiGrade ?? Number((score - 3.2).toFixed(1)),
+      community: analysis?.communityScore ?? 0,
+      activity: analysis?.activityScore ?? (github?.pushedAt ? 82 : 50 + (hash % 30)),
+      completeness: analysis?.completenessScore ?? (analysis ? Number((analysis.confidence * 100).toFixed(0)) : hasDemo && hasNotes && github ? 84 : hasDemo || hasNotes || github ? 72 : 58),
     },
-    strengths: [
+    strengths: strengths.length ? strengths.slice(0, 5) : [
       'Repository URL accepted and normalized',
       github ? `GitHub metadata fetched from ${github.defaultBranch}` : 'Public GitHub API lookup will enrich this scorecard when available',
-      analysis ? `${Object.values(analysis.checks).filter(Boolean).length}/5 repository checks passed` : 'Repository checks waiting for backend analyzer',
+      analysis ? `${passedChecks}/5 repository checks passed` : 'Repository checks waiting for backend analyzer',
       github?.language ? `${github.language} detected as primary language` : 'Primary language awaiting repository metadata',
       github?.license ? `${github.license} license signal detected` : 'License signal pending',
       hasDemo ? 'Live demo attached for reviewer verification' : 'Ready for demo and screenshot enrichment',
       hasNotes ? 'Reviewer guidance captured in intake notes' : 'Initial scorecard can be improved with positioning notes',
     ],
     risks: [
-      github ? 'File-level README, CI, and security evidence still needs backend fetch workers' : 'Repository files have not been fetched by a backend analyzer yet',
+      analysis?.version === 2 ? `Analyzer confidence ${(analysis.confidence * 100).toFixed(0)}%; manual review still required before featuring` : github ? 'File-level README, CI, and security evidence still needs backend fetch workers' : 'Repository files have not been fetched by a backend analyzer yet',
       ...(analysis?.recommendations.length ? analysis.recommendations : ['README, license, CI, Dockerfile, and dependency evidence are simulated in this prototype']),
       'Community reviews are pending',
     ],
     timeline: [
       `Submitted ${new Date(submission.submittedAt).toLocaleDateString()}`,
       github ? 'Public GitHub metadata fetched' : 'Mock analysis queued',
-      analysis ? 'Backend repository checks completed' : 'Awaiting repository fetch worker',
+      analysis?.version === 2 ? 'Weighted repository score generated' : analysis ? 'Backend repository checks completed' : 'Awaiting repository fetch worker',
       'Scorecard created from intake data',
     ],
+    analysis,
   };
 }
 

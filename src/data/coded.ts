@@ -12,6 +12,7 @@ import {
   Terminal,
   TestTube2,
 } from 'lucide-react';
+import { type RepositoryAnalysis } from '@/lib/submissions';
 
 export type Project = {
   slug: string;
@@ -45,6 +46,7 @@ export type Project = {
   strengths: string[];
   risks: string[];
   timeline: string[];
+  analysis?: RepositoryAnalysis;
 };
 
 export const projects: Project[] = [

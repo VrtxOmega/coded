@@ -1,7 +1,7 @@
 import { type FormEvent, useState } from 'react';
-import { Check, Download, EyeOff, Shield, Trash2 } from 'lucide-react';
+import { Check, Download, EyeOff, RefreshCcw, Shield, Trash2 } from 'lucide-react';
 import Footer from '@/sections/Footer';
-import { downloadAdminExport, fetchAdminSubmissions, moderateSubmission } from '@/lib/api';
+import { downloadAdminExport, fetchAdminSubmissions, moderateSubmission, reanalyzeSubmission } from '@/lib/api';
 import { getRepoName, type SubmissionState } from '@/lib/submissions';
 
 export default function AdminPage() {
@@ -36,6 +36,20 @@ export default function AdminPage() {
       ? items.filter((item) => item.id !== submission.id)
       : items.map((item) => item.id === submission.id ? updated : item));
     setMessage(`${getRepoName(submission.repoUrl)} ${action}d.`);
+  };
+
+  const reanalyze = async (submission: SubmissionState) => {
+    if (!submission.id) return;
+
+    setMessage(`Reanalyzing ${getRepoName(submission.repoUrl)}...`);
+    const updated = await reanalyzeSubmission(submission.id, token);
+    if (!updated) {
+      setMessage('Reanalysis failed.');
+      return;
+    }
+
+    setSubmissions((items) => items.map((item) => item.id === submission.id ? updated : item));
+    setMessage(`${getRepoName(submission.repoUrl)} score refreshed.`);
   };
 
   return (
@@ -77,8 +91,10 @@ export default function AdminPage() {
                     <strong>{getRepoName(submission.repoUrl) || submission.repoUrl}</strong>
                     <span>{submission.category} · {submission.status ?? 'approved'}</span>
                     <p>{submission.notes || submission.github?.description || 'No notes supplied.'}</p>
+                    {submission.analysis?.score && <small>Score {submission.analysis.score} · AI grade {submission.analysis.aiGrade ?? 'pending'} · confidence {Math.round(submission.analysis.confidence * 100)}%</small>}
                   </div>
                   <div className="admin-actions">
+                    <button type="button" onClick={() => reanalyze(submission)}><RefreshCcw size={15} /> Reanalyze</button>
                     <button type="button" onClick={() => applyAction(submission, 'approve')}><Check size={15} /> Approve</button>
                     <button type="button" onClick={() => applyAction(submission, 'hide')}><EyeOff size={15} /> Hide</button>
                     <button type="button" onClick={() => applyAction(submission, 'delete')}><Trash2 size={15} /> Delete</button>

@@ -17,6 +17,15 @@ type ApiSubmissionResponse = {
   error?: string;
 };
 
+type GitHubMeResponse = {
+  user: {
+    login: string;
+    id: number;
+    avatarUrl: string;
+    htmlUrl: string;
+  };
+};
+
 const productionApiUrl = 'https://pop-os.tail43dc9a.ts.net/api';
 const configuredApiUrl = import.meta.env.VITE_CODED_API_URL?.trim();
 const apiBaseUrl = (configuredApiUrl || (import.meta.env.PROD ? productionApiUrl : '')).replace(/\/$/, '');
@@ -25,6 +34,10 @@ function apiUrl(path: string) {
   if (!apiBaseUrl) return path;
   if (apiBaseUrl.endsWith('/api') && path.startsWith('/api/')) return `${apiBaseUrl}${path.slice(4)}`;
   return `${apiBaseUrl}${path}`;
+}
+
+export function getApiUrl(path: string) {
+  return apiUrl(path);
 }
 
 async function apiFetch<T>(path: string, options?: RequestInit): Promise<T | null> {
@@ -59,8 +72,10 @@ export async function createApiSubmission(input: {
   category: string;
   notes: string;
 }) {
+  const githubSession = window.sessionStorage.getItem('coded:github-session');
   const response = await apiFetch<ApiSubmissionResponse>('/api/submissions', {
     method: 'POST',
+    headers: githubSession ? { 'X-Coded-Session': githubSession } : undefined,
     body: JSON.stringify(input),
   });
 
@@ -82,6 +97,26 @@ export async function moderateSubmission(id: number, action: 'approve' | 'hide' 
   });
 
   return response?.submission ?? null;
+}
+
+export async function reanalyzeSubmission(id: number, adminToken: string) {
+  const response = await apiFetch<ApiSubmissionResponse>(`/api/admin/submissions/${id}/reanalyze`, {
+    method: 'POST',
+    headers: { 'X-Admin-Token': adminToken },
+  });
+
+  return response?.submission ?? null;
+}
+
+export async function fetchGithubSession() {
+  const githubSession = window.sessionStorage.getItem('coded:github-session');
+  if (!githubSession) return null;
+
+  const response = await apiFetch<GitHubMeResponse>('/api/auth/github/me', {
+    headers: { 'X-Coded-Session': githubSession },
+  });
+
+  return response?.user ?? null;
 }
 
 export function adminExportUrl() {

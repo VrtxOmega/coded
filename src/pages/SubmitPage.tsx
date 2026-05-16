@@ -1,9 +1,9 @@
-import { type FormEvent, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
-import { CheckCircle2, Github, Link as LinkIcon, Loader2, UploadCloud } from 'lucide-react';
+import { CheckCircle2, Github, Link as LinkIcon, Loader2, ShieldCheck, UploadCloud } from 'lucide-react';
 import Footer from '@/sections/Footer';
 import { createSubmission, fetchGithubRepository, getLastSubmission, getRepoName, githubRepoPattern, saveSubmission, type SubmissionState } from '@/lib/submissions';
-import { createApiSubmission } from '@/lib/api';
+import { createApiSubmission, fetchGithubSession, getApiUrl } from '@/lib/api';
 
 const requirements = ['Public GitHub repository', 'README with install and usage', 'Dockerfile or documented build command', 'Demo URL, screenshots, or short product video'];
 
@@ -23,10 +23,39 @@ export default function SubmitPage() {
   const [error, setError] = useState('');
   const [submission, setSubmission] = useState<SubmissionState | null>(initialSubmission);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [githubLogin, setGithubLogin] = useState(() => {
+    const url = new URL(window.location.href);
+    return url.searchParams.get('github_login') ?? window.sessionStorage.getItem('coded:github-login') ?? '';
+  });
 
   const repoName = useMemo(() => {
     return getRepoName(repoUrl);
   }, [repoUrl]);
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const session = url.searchParams.get('coded_session');
+    const login = url.searchParams.get('github_login');
+
+    if (session) {
+      window.sessionStorage.setItem('coded:github-session', session);
+      if (login) window.sessionStorage.setItem('coded:github-login', login);
+      url.searchParams.delete('coded_session');
+      url.searchParams.delete('github_login');
+      window.history.replaceState({}, '', url.toString());
+      return;
+    }
+
+    void fetchGithubSession().then((user) => {
+      if (!user) return;
+      window.sessionStorage.setItem('coded:github-login', user.login);
+      setGithubLogin(user.login);
+    });
+  }, []);
+
+  const connectGithub = () => {
+    window.location.href = getApiUrl(`/api/auth/github/start?returnTo=${encodeURIComponent(window.location.href)}`);
+  };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -80,6 +109,15 @@ export default function SubmitPage() {
             </div>
             <form className="submission-card" onSubmit={handleSubmit} noValidate>
               <h2>Project intake</h2>
+              <div className={`submission-message ${githubLogin ? 'success' : 'neutral'}`}>
+                <b>{githubLogin ? `Verified as ${githubLogin}` : 'GitHub verification'}</b>
+                <span>{githubLogin ? 'Submissions can be checked against repository maintainer access.' : 'Connect GitHub before submitting to verify maintainer access when OAuth is configured.'}</span>
+                {!githubLogin && (
+                  <button className="inline-auth-button" type="button" onClick={connectGithub}>
+                    <ShieldCheck size={16} /> Connect GitHub
+                  </button>
+                )}
+              </div>
               <label>
                 Repository URL
                 <input
@@ -122,7 +160,7 @@ export default function SubmitPage() {
                 <div className="submission-message success" role="status">
                   <b>{repoName || submission.repoUrl.replace('https://github.com/', '')}</b>
                   <span>
-                    {submission.github ? 'GitHub metadata fetched and pending scorecard created.' : 'Analysis queued. Your repo intake was saved and is ready for the scoring pipeline.'}
+                    {submission.submitter?.verifiedOwner ? 'Maintainer access verified and weighted scorecard created.' : submission.analysis?.version === 2 ? 'Weighted repository scorecard created.' : submission.github ? 'GitHub metadata fetched and pending scorecard created.' : 'Analysis queued. Your repo intake was saved and is ready for the scoring pipeline.'}
                   </span>
                   <Link to={`/projects/${slugFromRepo(submission.repoUrl)}`}>Open pending scorecard</Link>
                 </div>

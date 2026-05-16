@@ -12,10 +12,18 @@ export type SubmissionState = {
   status?: 'approved' | 'hidden' | 'deleted';
   github?: GitHubRepoMetadata;
   analysis?: RepositoryAnalysis;
+  submitter?: GitHubSubmitter;
 };
 
 export type RepositoryAnalysis = {
+  version?: number;
   checkedAt: string;
+  repoName?: string;
+  score?: number;
+  aiGrade?: number;
+  communityScore?: number;
+  activityScore?: number;
+  completenessScore?: number;
   checks: {
     readme: boolean;
     license: boolean;
@@ -24,7 +32,22 @@ export type RepositoryAnalysis = {
     workflow: boolean;
   };
   confidence: number;
+  dimensions?: {
+    codeQuality: AnalysisDimension;
+    documentation: AnalysisDimension;
+    testing: AnalysisDimension;
+    security: AnalysisDimension;
+    architecture: AnalysisDimension;
+    originality: AnalysisDimension;
+  };
+  evidence?: string[];
   recommendations: string[];
+};
+
+export type AnalysisDimension = {
+  score: number;
+  evidence: string[];
+  recommendation: string;
 };
 
 export type GitHubRepoMetadata = {
@@ -39,6 +62,14 @@ export type GitHubRepoMetadata = {
   license: string;
   defaultBranch: string;
   pushedAt: string;
+};
+
+export type GitHubSubmitter = {
+  login: string;
+  id: number;
+  avatarUrl: string;
+  htmlUrl: string;
+  verifiedOwner: boolean;
 };
 
 export function createSubmission({
