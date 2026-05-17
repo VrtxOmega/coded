@@ -7,7 +7,7 @@
     "dev": "node server/dev.mjs",
     "dev:web": "vite",
     "api": "node server/index.mjs",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/copy-pages-fallback.mjs",
     "lint": "eslint .",
     "test": "tsc -p tsconfig.test.json && node --test .test-dist/lib/*.test.js server/*.test.mjs",
     "preview": "vite preview"
