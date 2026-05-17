@@ -1,5 +1,5 @@
 import { type FormEvent, useState } from 'react';
-import { Check, Download, EyeOff, RefreshCcw, Shield, ShieldCheck, Trash2 } from 'lucide-react';
+import { Check, Download, EyeOff, LockKeyhole, LogOut, RefreshCcw, Shield, ShieldCheck, Trash2 } from 'lucide-react';
 import Footer from '@/sections/Footer';
 import { downloadAdminExport, fetchAdminSubmissions, moderateSubmission, reanalyzeAllSubmissions, reanalyzeSubmission } from '@/lib/api';
 import { getRepoName, type SubmissionState } from '@/lib/submissions';
@@ -8,6 +8,9 @@ export default function AdminPage() {
   const [token, setToken] = useState(() => window.sessionStorage.getItem('coded:admin-token') ?? '');
   const [submissions, setSubmissions] = useState<SubmissionState[]>([]);
   const [message, setMessage] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [busyIds, setBusyIds] = useState<number[]>([]);
   const summary = submissions.reduce((counts, submission) => {
     counts.total += 1;
@@ -20,16 +23,38 @@ export default function AdminPage() {
 
   const loadSubmissions = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
-    window.sessionStorage.setItem('coded:admin-token', token);
-
-    const nextSubmissions = await fetchAdminSubmissions(token);
-    if (!nextSubmissions) {
-      setMessage('Admin token rejected or backend unavailable.');
+    const trimmedToken = token.trim();
+    if (!trimmedToken) {
+      setLoginError('Enter the admin token.');
       return;
     }
 
-    setSubmissions(nextSubmissions);
-    setMessage(`${nextSubmissions.length} submissions loaded.`);
+    setIsLoading(true);
+    setLoginError('');
+    const result = await fetchAdminSubmissions(trimmedToken);
+    setIsLoading(false);
+    if (result.status !== 'ok' || !result.submissions) {
+      setIsAuthenticated(false);
+      setSubmissions([]);
+      setLoginError(result.error);
+      setMessage('');
+      return;
+    }
+
+    window.sessionStorage.setItem('coded:admin-token', trimmedToken);
+    setToken(trimmedToken);
+    setIsAuthenticated(true);
+    setSubmissions(result.submissions);
+    setMessage(`${result.submissions.length} submissions loaded.`);
+  };
+
+  const logout = () => {
+    window.sessionStorage.removeItem('coded:admin-token');
+    setToken('');
+    setSubmissions([]);
+    setIsAuthenticated(false);
+    setMessage('');
+    setLoginError('');
   };
 
   const applyAction = async (submission: SubmissionState, action: 'approve' | 'hide' | 'delete') => {
@@ -98,27 +123,57 @@ export default function AdminPage() {
 
         <section className="page-padding pb-28">
           <div className="max-w-7xl mx-auto ranking-panel">
-            <form className="admin-toolbar" onSubmit={loadSubmissions}>
-              <label>
-                Admin token
-                <input value={token} onChange={(event) => setToken(event.target.value)} type="password" placeholder="Server admin token" />
-              </label>
-              <button className="btn-primary" type="submit"><Shield size={16} /> Load queue</button>
-              <button className="btn-secondary" type="button" onClick={async () => {
-                const ok = await downloadAdminExport(token);
-                setMessage(ok ? 'Export downloaded.' : 'Export failed.');
-              }} disabled={!token}>
-                <Download size={16} /> Export JSON
-              </button>
-              <button className="btn-secondary" type="button" onClick={reanalyzeAll} disabled={!token || !submissions.length || Boolean(busyIds.length)}>
-                <RefreshCcw size={16} /> Reanalyze all
-              </button>
-            </form>
-            <div className="admin-hint">
-              Hidden submissions are withheld from public discovery until approved. Export downloads all non-deleted submissions as JSON.
-            </div>
+            {isAuthenticated && (
+              <form className="admin-toolbar" onSubmit={loadSubmissions}>
+                <div className="admin-session-status">
+                  <ShieldCheck size={16} />
+                  <span>Admin session unlocked</span>
+                </div>
+                <button className="btn-primary" type="submit" disabled={isLoading}><Shield size={16} /> Refresh queue</button>
+                <button className="btn-secondary" type="button" onClick={async () => {
+                  const ok = await downloadAdminExport(token);
+                  setMessage(ok ? 'Export downloaded.' : 'Export failed.');
+                }} disabled={!token}>
+                  <Download size={16} /> Export JSON
+                </button>
+                <button className="btn-secondary" type="button" onClick={reanalyzeAll} disabled={!token || !submissions.length || Boolean(busyIds.length)}>
+                  <RefreshCcw size={16} /> Reanalyze all
+                </button>
+                <button className="btn-secondary" type="button" onClick={logout}>
+                  <LogOut size={16} /> Lock
+                </button>
+              </form>
+            )}
+            {!isAuthenticated ? (
+              <form className="admin-login-panel" onSubmit={loadSubmissions}>
+                <div className="admin-login-icon" aria-hidden="true"><LockKeyhole size={24} /></div>
+                <div>
+                  <strong>Admin access</strong>
+                  <span>Enter the server admin token to load moderation tools for this browser session.</span>
+                </div>
+                <label>
+                  Admin token
+                  <input
+                    value={token}
+                    onChange={(event) => setToken(event.target.value)}
+                    type="password"
+                    autoComplete="current-password"
+                    placeholder="Paste admin token"
+                    autoFocus
+                  />
+                </label>
+                {loginError && <div className="admin-login-error">{loginError}</div>}
+                <button className="btn-primary" type="submit" disabled={isLoading}>
+                  <Shield size={16} /> {isLoading ? 'Checking...' : 'Unlock admin'}
+                </button>
+              </form>
+            ) : (
+              <div className="admin-hint">
+                Hidden submissions are withheld from public discovery until approved. Export downloads all non-deleted submissions as JSON.
+              </div>
+            )}
             {message && <div className="admin-message">{message}</div>}
-            {Boolean(submissions.length) && (
+            {isAuthenticated && Boolean(submissions.length) && (
               <div className="admin-summary-grid" aria-label="Moderation summary">
                 <div><strong>{summary.total}</strong><span>Total</span></div>
                 <div><strong>{summary.approved}</strong><span>Approved</span></div>
@@ -129,7 +184,7 @@ export default function AdminPage() {
               </div>
             )}
             <div className="ranking-list">
-              {submissions.map((submission) => (
+              {isAuthenticated && submissions.map((submission) => (
                 <div className="admin-row" key={submission.id ?? submission.repoUrl}>
                   <div>
                     <strong>{getRepoName(submission.repoUrl) || submission.repoUrl}</strong>
@@ -159,10 +214,10 @@ export default function AdminPage() {
                   </div>
                 </div>
               ))}
-              {!submissions.length && (
+              {isAuthenticated && !submissions.length && (
                 <div className="empty-results">
-                  <strong>No moderation data loaded.</strong>
-                  <span>Enter the admin token and load the queue.</span>
+                  <strong>No submissions in the moderation queue.</strong>
+                  <span>New unverified submissions will appear here before public listing.</span>
                 </div>
               )}
             </div>

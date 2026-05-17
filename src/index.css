@@ -801,7 +801,7 @@
 
   .admin-toolbar {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto auto auto auto;
     gap: 1rem;
     align-items: end;
     padding: 1rem;
@@ -822,6 +822,82 @@
     background: #0b0c0f;
     color: #f8f8f8;
     padding: 0 0.85rem;
+  }
+
+  .admin-session-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-height: 48px;
+    color: #efffb8;
+    font-size: 0.88rem;
+  }
+
+  .admin-login-panel {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 1rem;
+    max-width: 560px;
+    padding: 1.25rem;
+  }
+
+  .admin-login-icon {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 8px;
+    color: #d8faff;
+    background: rgba(0, 229, 255, 0.08);
+    border: 1px solid rgba(0, 229, 255, 0.18);
+  }
+
+  .admin-login-panel strong,
+  .admin-login-panel span,
+  .admin-login-panel label {
+    display: block;
+  }
+
+  .admin-login-panel strong {
+    color: #f8f8f8;
+    font-size: 1rem;
+  }
+
+  .admin-login-panel span {
+    color: #9ea2b3;
+    margin-top: 0.25rem;
+    font-size: 0.9rem;
+  }
+
+  .admin-login-panel label {
+    grid-column: 1 / -1;
+    color: #9ea2b3;
+    font-size: 0.82rem;
+  }
+
+  .admin-login-panel input {
+    width: 100%;
+    min-height: 50px;
+    margin-top: 0.45rem;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: #0b0c0f;
+    color: #f8f8f8;
+    padding: 0 0.9rem;
+  }
+
+  .admin-login-panel button,
+  .admin-login-error {
+    grid-column: 1 / -1;
+  }
+
+  .admin-login-error {
+    color: #ffd18a;
+    font-size: 0.88rem;
+    padding: 0.8rem 0.9rem;
+    border-radius: 8px;
+    background: rgba(255, 209, 138, 0.08);
+    border: 1px solid rgba(255, 209, 138, 0.16);
   }
 
   .admin-message {
@@ -1595,6 +1671,10 @@
 
     .admin-actions {
       justify-content: flex-start;
+    }
+
+    .admin-login-panel {
+      grid-template-columns: 1fr;
     }
 
     .ranking-row {

@@ -17,6 +17,12 @@ type ApiSubmissionResponse = {
   error?: string;
 };
 
+export type AdminSubmissionsResult = {
+  submissions: SubmissionState[] | null;
+  status: 'ok' | 'unauthorized' | 'forbidden' | 'unconfigured' | 'unavailable' | 'error';
+  error: string;
+};
+
 type GitHubMeResponse = {
   user: {
     login: string;
@@ -110,11 +116,49 @@ export async function reanalyzeAllSubmissions(ids: number[], adminToken: string)
 }
 
 export async function fetchAdminSubmissions(adminToken: string) {
-  const response = await apiFetch<ApiSubmissionsResponse>('/api/admin/submissions', {
-    headers: { 'X-Admin-Token': adminToken },
-  });
+  try {
+    const response = await fetch(apiUrl('/api/admin/submissions'), {
+      headers: { 'X-Admin-Token': adminToken },
+    });
 
-  return response?.submissions ?? null;
+    const payload = await response.json().catch(() => ({})) as Partial<ApiSubmissionsResponse> & { error?: string };
+
+    if (response.ok) {
+      return {
+        submissions: payload.submissions ?? [],
+        status: 'ok',
+        error: '',
+      } satisfies AdminSubmissionsResult;
+    }
+
+    if (response.status === 401) {
+      return {
+        submissions: null,
+        status: 'unauthorized',
+        error: payload.error ?? 'Admin token rejected.',
+      } satisfies AdminSubmissionsResult;
+    }
+
+    if (response.status === 403) {
+      return {
+        submissions: null,
+        status: payload.error?.toLowerCase().includes('not configured') ? 'unconfigured' : 'forbidden',
+        error: payload.error ?? 'Admin access is forbidden.',
+      } satisfies AdminSubmissionsResult;
+    }
+
+    return {
+      submissions: null,
+      status: 'error',
+      error: payload.error ?? `Admin request failed with HTTP ${response.status}.`,
+    } satisfies AdminSubmissionsResult;
+  } catch {
+    return {
+      submissions: null,
+      status: 'unavailable',
+      error: 'Backend unavailable from this browser.',
+    } satisfies AdminSubmissionsResult;
+  }
 }
 
 export async function moderateSubmission(id: number, action: 'approve' | 'hide' | 'delete', adminToken: string) {
