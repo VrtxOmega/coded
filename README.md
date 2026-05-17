@@ -15,6 +15,7 @@ Submit page: https://vrtxomega.github.io/coded/#/submit
 - Node API with SQLite submission storage
 - Admin moderation, JSON export, and reanalysis actions
 - Optional no-repository-scope GitHub OAuth for owner verification
+- Durable SQLite-backed GitHub OAuth sessions
 - Public repository analysis works without GitHub authorization; unverified submissions can be moderated before listing
 - GitHub Pages deployment for the frontend
 

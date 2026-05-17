@@ -9,6 +9,14 @@ export default function AdminPage() {
   const [submissions, setSubmissions] = useState<SubmissionState[]>([]);
   const [message, setMessage] = useState('');
   const [busyIds, setBusyIds] = useState<number[]>([]);
+  const summary = submissions.reduce((counts, submission) => {
+    counts.total += 1;
+    counts[submission.status ?? 'approved'] += 1;
+    if (submission.submitter?.verifiedOwner) counts.verified += 1;
+    if (submission.submitter && !submission.submitter.verifiedOwner) counts.unverified += 1;
+    if (!submission.submitter) counts.anonymous += 1;
+    return counts;
+  }, { total: 0, approved: 0, hidden: 0, deleted: 0, verified: 0, unverified: 0, anonymous: 0 });
 
   const loadSubmissions = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
@@ -107,9 +115,19 @@ export default function AdminPage() {
               </button>
             </form>
             <div className="admin-hint">
-              Export downloads all non-deleted submissions as JSON using the admin token for this session.
+              Hidden submissions are withheld from public discovery until approved. Export downloads all non-deleted submissions as JSON.
             </div>
             {message && <div className="admin-message">{message}</div>}
+            {Boolean(submissions.length) && (
+              <div className="admin-summary-grid" aria-label="Moderation summary">
+                <div><strong>{summary.total}</strong><span>Total</span></div>
+                <div><strong>{summary.approved}</strong><span>Approved</span></div>
+                <div><strong>{summary.hidden}</strong><span>Hidden</span></div>
+                <div><strong>{summary.verified}</strong><span>Verified</span></div>
+                <div><strong>{summary.unverified}</strong><span>Unverified</span></div>
+                <div><strong>{summary.anonymous}</strong><span>Anonymous</span></div>
+              </div>
+            )}
             <div className="ranking-list">
               {submissions.map((submission) => (
                 <div className="admin-row" key={submission.id ?? submission.repoUrl}>
@@ -125,7 +143,13 @@ export default function AdminPage() {
                         {submission.submitter.verifiedOwner && <ShieldCheck size={13} />} Submitted by {submission.submitter.login}
                       </small>
                     )}
-                    {submission.analysis?.score && <small>Score {submission.analysis.score} · AI grade {submission.analysis.aiGrade ?? 'pending'} · confidence {Math.round(submission.analysis.confidence * 100)}%</small>}
+                    {submission.analysis?.score && (
+                      <small>
+                        Score {submission.analysis.score} · AI grade {submission.analysis.aiGrade ?? 'pending'} · confidence {Math.round(submission.analysis.confidence * 100)}%
+                        {submission.analysisHistory?.length ? ` · ${submission.analysisHistory.length} prior ${submission.analysisHistory.length === 1 ? 'analysis' : 'analyses'}` : ''}
+                      </small>
+                    )}
+                    {submission.status === 'hidden' && <small className="admin-review-note">Needs approval before it appears publicly.</small>}
                   </div>
                   <div className="admin-actions">
                     <button type="button" disabled={submission.id ? busyIds.includes(submission.id) : false} onClick={() => reanalyze(submission)}><RefreshCcw size={15} /> Reanalyze</button>

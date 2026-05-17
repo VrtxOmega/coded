@@ -16,6 +16,7 @@ const githubRepoPattern = /^https:\/\/github\.com\/([\w.-]+)\/([\w.-]+)\/?$/i;
 const maxBodyBytes = Number(process.env.MAX_BODY_BYTES ?? 16_384);
 const rateLimitWindowMs = Number(process.env.RATE_LIMIT_WINDOW_MS ?? 60_000);
 const rateLimitMax = Number(process.env.RATE_LIMIT_MAX ?? 10);
+const githubSessionTtlMs = Number(process.env.GITHUB_SESSION_TTL_MS ?? 7 * 24 * 60 * 60_000);
 const adminToken = process.env.CODED_ADMIN_TOKEN ?? '';
 const githubClientId = process.env.GITHUB_CLIENT_ID ?? '';
 const githubClientSecret = process.env.GITHUB_CLIENT_SECRET ?? '';
@@ -25,7 +26,6 @@ const allowedOrigins = (process.env.ALLOWED_ORIGINS ?? '*')
   .filter(Boolean);
 const rateBuckets = new Map();
 const oauthStates = new Map();
-const githubSessions = new Map();
 let db;
 
 function corsOrigin(request) {
@@ -106,9 +106,8 @@ function sessionFromRequest(request) {
   const token = request.headers['x-coded-session'];
   if (typeof token !== 'string') return null;
 
-  const session = githubSessions.get(token);
-  if (!session || session.expiresAt < Date.now()) {
-    if (session) githubSessions.delete(token);
+  const session = readGithubSession(token);
+  if (!session) {
     return null;
   }
 
@@ -162,7 +161,17 @@ async function initDb() {
       updated_at TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS idx_submissions_status_created ON submissions(status, created_at DESC);
+
+    CREATE TABLE IF NOT EXISTS github_sessions (
+      token TEXT PRIMARY KEY,
+      access_token TEXT NOT NULL,
+      user_payload TEXT NOT NULL,
+      expires_at INTEGER NOT NULL,
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_github_sessions_expires ON github_sessions(expires_at);
   `);
+  pruneGithubSessions();
 
   if (existsSync(dataFile)) {
     const existingRows = db.prepare('SELECT COUNT(*) AS count FROM submissions').get();
@@ -172,6 +181,41 @@ async function initDb() {
         upsertSubmission({ ...submission, status: submission.status ?? 'approved' });
       }
     }
+  }
+}
+
+function pruneGithubSessions() {
+  db.prepare('DELETE FROM github_sessions WHERE expires_at < ?').run(Date.now());
+}
+
+function writeGithubSession(token, exchanged) {
+  const expiresAt = Date.now() + githubSessionTtlMs;
+  db.prepare(`
+    INSERT OR REPLACE INTO github_sessions (token, access_token, user_payload, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(token, exchanged.accessToken, JSON.stringify(exchanged.user), expiresAt, new Date().toISOString());
+
+  return { ...exchanged, expiresAt };
+}
+
+function readGithubSession(token) {
+  const row = db.prepare('SELECT * FROM github_sessions WHERE token = ?').get(token);
+  if (!row) return null;
+
+  if (row.expires_at < Date.now()) {
+    db.prepare('DELETE FROM github_sessions WHERE token = ?').run(token);
+    return null;
+  }
+
+  try {
+    return {
+      accessToken: row.access_token,
+      user: JSON.parse(row.user_payload),
+      expiresAt: row.expires_at,
+    };
+  } catch {
+    db.prepare('DELETE FROM github_sessions WHERE token = ?').run(token);
+    return null;
   }
 }
 
@@ -232,6 +276,25 @@ function updateSubmissionPayload(id, submission) {
     id,
   );
   return getSubmissionById(id);
+}
+
+function previousAnalysisSnapshot(submission) {
+  if (!submission.analysis) return null;
+
+  return {
+    capturedAt: new Date().toISOString(),
+    checkedAt: submission.analysis.checkedAt,
+    score: submission.analysis.score,
+    aiGrade: submission.analysis.aiGrade,
+    confidence: submission.analysis.confidence,
+    version: submission.analysis.version,
+  };
+}
+
+function appendAnalysisHistory(submission) {
+  const snapshot = previousAnalysisSnapshot(submission);
+  const existingHistory = Array.isArray(submission.analysisHistory) ? submission.analysisHistory : [];
+  return snapshot ? [snapshot, ...existingHistory].slice(0, 10) : existingHistory.slice(0, 10);
 }
 
 function healthStats() {
@@ -372,7 +435,7 @@ const server = createServer(async (request, response) => {
       if (!exchanged) return json(request, response, 502, { error: 'GitHub OAuth exchange failed.' });
 
       const sessionToken = randomUUID();
-      githubSessions.set(sessionToken, { ...exchanged, expiresAt: Date.now() + 7 * 24 * 60 * 60_000 });
+      writeGithubSession(sessionToken, exchanged);
       const redirectUrl = new URL(savedState.returnTo, `http://${request.headers.host}`);
       redirectUrl.searchParams.set('coded_session', sessionToken);
       redirectUrl.searchParams.set('github_login', exchanged.user.login);
@@ -420,6 +483,7 @@ const server = createServer(async (request, response) => {
         ...existing,
         github: enriched.github ?? existing.github,
         analysis: enriched.analysis ?? existing.analysis,
+        analysisHistory: appendAnalysisHistory(existing),
       });
       return json(request, response, 200, { submission: updated });
     }

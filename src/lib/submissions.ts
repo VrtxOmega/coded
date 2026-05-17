@@ -12,7 +12,17 @@ export type SubmissionState = {
   status?: 'approved' | 'hidden' | 'deleted';
   github?: GitHubRepoMetadata;
   analysis?: RepositoryAnalysis;
+  analysisHistory?: RepositoryAnalysisSnapshot[];
   submitter?: GitHubSubmitter;
+};
+
+export type RepositoryAnalysisSnapshot = {
+  capturedAt: string;
+  checkedAt?: string;
+  score?: number;
+  aiGrade?: number;
+  confidence?: number;
+  version?: number;
 };
 
 export type RepositoryAnalysis = {

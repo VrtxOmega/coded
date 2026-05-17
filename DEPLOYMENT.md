@@ -37,6 +37,8 @@ Environment variables:
 
 The backend stores submissions in `data/coded.sqlite`. It migrates old `data/submissions.json` data if the SQLite database is empty. The `data/` directory is ignored by git.
 
+GitHub OAuth sessions are also stored in `data/coded.sqlite`, not process memory, so a backend restart does not invalidate a current browser session. Session tokens expire after seven days by default. Set `GITHUB_SESSION_TTL_MS` on the backend host to shorten or lengthen that window.
+
 Admin endpoints:
 
 - `GET /api/admin/submissions`
@@ -104,3 +106,9 @@ ls -lh /home/vrtxomega/backups/coded-api
 5. Set `ALLOWED_ORIGINS` to the GitHub Pages origin.
 6. Add `CODED_API_URL` as a GitHub repository variable, not a secret, so the Pages build points to the API.
 7. Optional: create a GitHub OAuth app and set its callback URL to `<CODED_API_URL>/auth/github/callback`, then set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` only on the backend host. The OAuth flow requests no repository scopes; public repo analysis uses public GitHub APIs.
+
+## GitHub App migration path
+
+The current OAuth app intentionally requests no repository scopes. That keeps the consent screen narrow and lets public repo analysis keep working with anonymous public GitHub APIs. With no repository scope, Coded can only verify direct owner submissions where the GitHub login matches the repository owner.
+
+Move to a GitHub App when Coded needs organization ownership, collaborator/team checks, private repository analysis, or future write actions. Start with zero repository permissions for public-only identity flows. If repository access becomes necessary, request the smallest permission needed, such as `Contents: Read-only` for private repo analysis. Do not return to OAuth `public_repo`; it bundles read and write permissions and creates a worse consent screen.
