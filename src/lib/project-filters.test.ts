@@ -12,6 +12,7 @@ const projects: FilterableProject[] = [
     repo: 'github.com/ava/alpha-guard',
     score: 88,
     tags: ['Security'],
+    submitter: { verifiedOwner: true },
     breakdown: { activity: 60 },
     stats: { reviews: 5, stars: 40 },
   },
@@ -24,6 +25,7 @@ const projects: FilterableProject[] = [
     repo: 'github.com/ben/beta-trace',
     score: 92,
     tags: ['AI'],
+    submitter: { verifiedOwner: false },
     breakdown: { activity: 90 },
     stats: { reviews: 2, stars: 80 },
   },
@@ -35,6 +37,18 @@ test('filters by query, category, and minimum score', () => {
     category: 'Security',
     minimumScore: 85,
     sortBy: 'composite',
+  });
+
+  assert.deepEqual(result.map((project) => project.title), ['Alpha Guard']);
+});
+
+test('filters to verified maintainers only', () => {
+  const result = filterAndSortProjects(projects, {
+    query: '',
+    category: 'All',
+    minimumScore: 50,
+    sortBy: 'composite',
+    verifiedOnly: true,
   });
 
   assert.deepEqual(result.map((project) => project.title), ['Alpha Guard']);

@@ -1,13 +1,14 @@
 import { type FormEvent, useState } from 'react';
-import { Check, Download, EyeOff, RefreshCcw, Shield, Trash2 } from 'lucide-react';
+import { Check, Download, EyeOff, RefreshCcw, Shield, ShieldCheck, Trash2 } from 'lucide-react';
 import Footer from '@/sections/Footer';
-import { downloadAdminExport, fetchAdminSubmissions, moderateSubmission, reanalyzeSubmission } from '@/lib/api';
+import { downloadAdminExport, fetchAdminSubmissions, moderateSubmission, reanalyzeAllSubmissions, reanalyzeSubmission } from '@/lib/api';
 import { getRepoName, type SubmissionState } from '@/lib/submissions';
 
 export default function AdminPage() {
   const [token, setToken] = useState(() => window.sessionStorage.getItem('coded:admin-token') ?? '');
   const [submissions, setSubmissions] = useState<SubmissionState[]>([]);
   const [message, setMessage] = useState('');
+  const [busyIds, setBusyIds] = useState<number[]>([]);
 
   const loadSubmissions = async (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
@@ -26,7 +27,9 @@ export default function AdminPage() {
   const applyAction = async (submission: SubmissionState, action: 'approve' | 'hide' | 'delete') => {
     if (!submission.id) return;
 
+    setBusyIds((ids) => [...ids, submission.id as number]);
     const updated = await moderateSubmission(submission.id, action, token);
+    setBusyIds((ids) => ids.filter((id) => id !== submission.id));
     if (!updated) {
       setMessage('Moderation action failed.');
       return;
@@ -41,8 +44,10 @@ export default function AdminPage() {
   const reanalyze = async (submission: SubmissionState) => {
     if (!submission.id) return;
 
+    setBusyIds((ids) => [...ids, submission.id as number]);
     setMessage(`Reanalyzing ${getRepoName(submission.repoUrl)}...`);
     const updated = await reanalyzeSubmission(submission.id, token);
+    setBusyIds((ids) => ids.filter((id) => id !== submission.id));
     if (!updated) {
       setMessage('Reanalysis failed.');
       return;
@@ -50,6 +55,24 @@ export default function AdminPage() {
 
     setSubmissions((items) => items.map((item) => item.id === submission.id ? updated : item));
     setMessage(`${getRepoName(submission.repoUrl)} score refreshed.`);
+  };
+
+  const reanalyzeAll = async () => {
+    const ids = submissions.map((submission) => submission.id).filter((id): id is number => Boolean(id));
+    if (!ids.length) return;
+
+    setBusyIds(ids);
+    setMessage(`Reanalyzing ${ids.length} submissions...`);
+    const refreshed = await reanalyzeAllSubmissions(ids, token);
+    setBusyIds([]);
+
+    if (!refreshed.length) {
+      setMessage('Bulk reanalysis failed.');
+      return;
+    }
+
+    setSubmissions((items) => items.map((item) => refreshed.find((fresh) => fresh.id === item.id) ?? item));
+    setMessage(`${refreshed.length} submissions refreshed.`);
   };
 
   return (
@@ -79,6 +102,9 @@ export default function AdminPage() {
               }} disabled={!token}>
                 <Download size={16} /> Export JSON
               </button>
+              <button className="btn-secondary" type="button" onClick={reanalyzeAll} disabled={!token || !submissions.length || Boolean(busyIds.length)}>
+                <RefreshCcw size={16} /> Reanalyze all
+              </button>
             </form>
             <div className="admin-hint">
               Export downloads all non-deleted submissions as JSON using the admin token for this session.
@@ -89,15 +115,23 @@ export default function AdminPage() {
                 <div className="admin-row" key={submission.id ?? submission.repoUrl}>
                   <div>
                     <strong>{getRepoName(submission.repoUrl) || submission.repoUrl}</strong>
-                    <span>{submission.category} · {submission.status ?? 'approved'}</span>
+                    <span>
+                      {submission.category} · {submission.status ?? 'approved'}
+                      {submission.submitter?.verifiedOwner ? ' · verified maintainer' : submission.submitter ? ' · unverified maintainer' : ' · no GitHub session'}
+                    </span>
                     <p>{submission.notes || submission.github?.description || 'No notes supplied.'}</p>
+                    {submission.submitter && (
+                      <small className={submission.submitter.verifiedOwner ? 'verified-inline' : ''}>
+                        {submission.submitter.verifiedOwner && <ShieldCheck size={13} />} Submitted by {submission.submitter.login}
+                      </small>
+                    )}
                     {submission.analysis?.score && <small>Score {submission.analysis.score} · AI grade {submission.analysis.aiGrade ?? 'pending'} · confidence {Math.round(submission.analysis.confidence * 100)}%</small>}
                   </div>
                   <div className="admin-actions">
-                    <button type="button" onClick={() => reanalyze(submission)}><RefreshCcw size={15} /> Reanalyze</button>
-                    <button type="button" onClick={() => applyAction(submission, 'approve')}><Check size={15} /> Approve</button>
-                    <button type="button" onClick={() => applyAction(submission, 'hide')}><EyeOff size={15} /> Hide</button>
-                    <button type="button" onClick={() => applyAction(submission, 'delete')}><Trash2 size={15} /> Delete</button>
+                    <button type="button" disabled={submission.id ? busyIds.includes(submission.id) : false} onClick={() => reanalyze(submission)}><RefreshCcw size={15} /> Reanalyze</button>
+                    <button type="button" disabled={submission.id ? busyIds.includes(submission.id) : false} onClick={() => applyAction(submission, 'approve')}><Check size={15} /> Approve</button>
+                    <button type="button" disabled={submission.id ? busyIds.includes(submission.id) : false} onClick={() => applyAction(submission, 'hide')}><EyeOff size={15} /> Hide</button>
+                    <button type="button" disabled={submission.id ? busyIds.includes(submission.id) : false} onClick={() => applyAction(submission, 'delete')}><Trash2 size={15} /> Delete</button>
                   </div>
                 </div>
               ))}

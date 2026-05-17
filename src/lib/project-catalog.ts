@@ -59,7 +59,11 @@ export function projectFromSubmission(submission: SubmissionState, index = 0): P
     score,
     delta: analysis ? 'fresh analysis' : '+0.0',
     stage: analysis?.version === 2 ? 'Scorecard generated' : analysis ? 'Analyzed' : github ? 'Repository fetched' : 'Analysis queued',
-    tags: [...(categoryTags[category] ?? ['Submitted']), analysis?.version === 2 ? 'Scored' : analysis ? 'Analyzed' : 'Pending'],
+    tags: [
+      ...(categoryTags[category] ?? ['Submitted']),
+      analysis?.version === 2 ? 'Scored' : analysis ? 'Analyzed' : 'Pending',
+      submission.submitter?.verifiedOwner ? 'Verified maintainer' : 'Unverified',
+    ],
     summary: submission.notes || github?.description || `${titleize(repo)} is queued for Coded analysis from ${repoName || submission.repoUrl}.`,
     repo: submission.repoUrl.replace(/^https?:\/\//, ''),
     demo: hasDemo ? (submission.demoUrl || github?.homepage || '').replace(/^https?:\/\//, '') : 'Demo not provided',
@@ -93,11 +97,16 @@ export function projectFromSubmission(submission: SubmissionState, index = 0): P
     ],
     timeline: [
       `Submitted ${new Date(submission.submittedAt).toLocaleDateString()}`,
+      submission.submitter?.verifiedOwner ? `Maintainer verified as ${submission.submitter.login}` : 'Maintainer verification pending',
       github ? 'Public GitHub metadata fetched' : 'Mock analysis queued',
       analysis?.version === 2 ? 'Weighted repository score generated' : analysis ? 'Backend repository checks completed' : 'Awaiting repository fetch worker',
       'Scorecard created from intake data',
     ],
     analysis,
+    submitter: submission.submitter ? {
+      login: submission.submitter.login,
+      verifiedOwner: submission.submitter.verifiedOwner,
+    } : undefined,
   };
 }
 

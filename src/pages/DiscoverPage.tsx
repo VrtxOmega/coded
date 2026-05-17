@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
-import { ArrowUpRight, Filter, Search, SlidersHorizontal, Star } from 'lucide-react';
+import { ArrowUpRight, Filter, Search, ShieldCheck, SlidersHorizontal, Star } from 'lucide-react';
 import Footer from '@/sections/Footer';
 import { platformStats } from '@/data/coded';
 import { useProjectCatalog } from '@/lib/project-catalog';
@@ -22,10 +22,11 @@ export default function DiscoverPage() {
   const [category, setCategory] = useState(initialCategory && categories.includes(initialCategory) ? initialCategory : 'All');
   const [minimumScore, setMinimumScore] = useState(85);
   const [sortBy, setSortBy] = useState<SortOption>('composite');
+  const [verifiedOnly, setVerifiedOnly] = useState(false);
 
   const visibleProjects = useMemo(() => {
-    return filterAndSortProjects(projects, { query, category, minimumScore, sortBy });
-  }, [category, minimumScore, projects, query, sortBy]);
+    return filterAndSortProjects(projects, { query, category, minimumScore, sortBy, verifiedOnly });
+  }, [category, minimumScore, projects, query, sortBy, verifiedOnly]);
 
   return (
     <>
@@ -96,6 +97,14 @@ export default function DiscoverPage() {
                   onChange={(event) => setMinimumScore(Number(event.target.value))}
                 />
               </label>
+              <label className="checkbox-filter">
+                <input
+                  type="checkbox"
+                  checked={verifiedOnly}
+                  onChange={(event) => setVerifiedOnly(event.target.checked)}
+                />
+                Verified maintainers only
+              </label>
               <div className="filter-note">
                 Rankings blend AI grade, community rating, activity, and completeness. Sponsored placements never alter score.
               </div>
@@ -125,7 +134,10 @@ export default function DiscoverPage() {
                     <div className="ranking-main">
                       <div className="ranking-title-line">
                         <h3>{project.title}</h3>
-                        <span>{project.stage}</span>
+                        <span className={project.submitter?.verifiedOwner ? 'verified-stage' : ''}>
+                          {project.submitter?.verifiedOwner && <ShieldCheck size={13} />}
+                          {project.submitter?.verifiedOwner ? 'Verified maintainer' : project.stage}
+                        </span>
                       </div>
                       <p>{project.summary}</p>
                       <div className="ranking-tags">

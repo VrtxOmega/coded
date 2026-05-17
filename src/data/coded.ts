@@ -47,6 +47,10 @@ export type Project = {
   risks: string[];
   timeline: string[];
   analysis?: RepositoryAnalysis;
+  submitter?: {
+    login: string;
+    verifiedOwner: boolean;
+  };
 };
 
 export const projects: Project[] = [

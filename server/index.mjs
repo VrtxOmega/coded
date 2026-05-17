@@ -323,6 +323,8 @@ async function verifiedRepoPermission(repoUrl, session) {
 function createSubmission(body, enriched, submitter = null) {
   const notes = (body.notes ?? '').trim().slice(0, 500);
   const demoUrl = (body.demoUrl ?? '').trim().slice(0, 300);
+  const requiresVerification = Boolean(githubClientId && githubClientSecret);
+  const isVerifiedOwner = Boolean(submitter?.verifiedOwner);
 
   return {
     repoUrl: body.repoUrl.trim().slice(0, 300),
@@ -330,7 +332,7 @@ function createSubmission(body, enriched, submitter = null) {
     category: body.category || 'Developer Tools',
     notes,
     submittedAt: new Date().toISOString(),
-    status: 'approved',
+    status: requiresVerification && !isVerifiedOwner ? 'hidden' : 'approved',
     github: enriched.github ?? undefined,
     analysis: enriched.analysis ?? undefined,
     submitter: submitter ?? undefined,
@@ -438,8 +440,12 @@ const server = createServer(async (request, response) => {
         return json(request, response, 400, { error: 'Enter a full public GitHub repo URL.' });
       }
 
-      const enriched = await analyzeRepository(body.repoUrl.trim());
       const session = sessionFromRequest(request);
+      if (githubClientId && githubClientSecret && !session) {
+        return json(request, response, 401, { error: 'Connect GitHub before submitting a public project.' });
+      }
+
+      const enriched = await analyzeRepository(body.repoUrl.trim());
       const verifiedOwner = await verifiedRepoPermission(body.repoUrl.trim(), session);
       const submitter = session ? { ...session.user, verifiedOwner } : null;
       const submission = createSubmission(body, enriched, submitter);

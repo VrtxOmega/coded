@@ -42,6 +42,11 @@ export default function ProjectPage() {
             <div className="project-detail-grid">
               <div>
                 <span className="eyebrow">PROJECT SCORECARD</span>
+                {project.submitter?.verifiedOwner && (
+                  <div className="verified-project-badge">
+                    <ShieldCheck size={16} /> Verified maintainer: {project.submitter.login}
+                  </div>
+                )}
                 <h1 className="text-h2 text-text-primary mt-4 mb-4">{project.title}</h1>
                 <p className="text-body" style={{ color: '#B9BCC9', maxWidth: 760 }}>{project.summary}</p>
                 <div className="project-actions">
@@ -124,6 +129,7 @@ export default function ProjectPage() {
                 {[
                   ['Repo', project.repo],
                   ['Demo', project.demo],
+                  ['Maintainer', project.submitter?.verifiedOwner ? `Verified: ${project.submitter.login}` : 'Not verified'],
                   ['Tests', project.stats.tests],
                   ['Coverage', project.stats.coverage],
                   ['Releases', String(project.stats.releases)],

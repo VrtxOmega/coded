@@ -13,7 +13,7 @@ export type ApiHealth = {
 };
 
 type ApiSubmissionResponse = {
-  submission: SubmissionState;
+  submission?: SubmissionState;
   error?: string;
 };
 
@@ -73,13 +73,40 @@ export async function createApiSubmission(input: {
   notes: string;
 }) {
   const githubSession = window.sessionStorage.getItem('coded:github-session');
-  const response = await apiFetch<ApiSubmissionResponse>('/api/submissions', {
-    method: 'POST',
-    headers: githubSession ? { 'X-Coded-Session': githubSession } : undefined,
-    body: JSON.stringify(input),
-  });
+  try {
+    const response = await fetch(apiUrl('/api/submissions'), {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(githubSession ? { 'X-Coded-Session': githubSession } : {}),
+      },
+      body: JSON.stringify(input),
+    });
 
-  return response?.submission ?? null;
+    const payload = await response.json() as ApiSubmissionResponse;
+    return {
+      submission: response.ok ? payload.submission ?? null : null,
+      error: response.ok ? '' : payload.error ?? 'Submission failed.',
+      unavailable: false,
+    };
+  } catch {
+    return {
+      submission: null,
+      error: '',
+      unavailable: true,
+    };
+  }
+}
+
+export async function reanalyzeAllSubmissions(ids: number[], adminToken: string) {
+  const refreshed: SubmissionState[] = [];
+
+  for (const id of ids) {
+    const submission = await reanalyzeSubmission(id, adminToken);
+    if (submission) refreshed.push(submission);
+  }
+
+  return refreshed;
 }
 
 export async function fetchAdminSubmissions(adminToken: string) {

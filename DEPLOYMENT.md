@@ -4,6 +4,8 @@
 
 The existing `.github/workflows/deploy-pages.yml` builds the Vite frontend and deploys `dist` to GitHub Pages.
 
+The app uses hash routing on GitHub Pages. Use `https://vrtxomega.github.io/coded/#/submit` for the live submit page.
+
 Set this non-secret repository variable if you want to override the default API URL:
 
 - `CODED_API_URL`: public API base URL, for example `https://coded-api.example.com` or `https://pop-os.tail43dc9a.ts.net/api`

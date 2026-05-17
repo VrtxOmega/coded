@@ -9,6 +9,9 @@ export type FilterableProject = {
   repo: string;
   score: number;
   tags: string[];
+  submitter?: {
+    verifiedOwner: boolean;
+  };
   breakdown: {
     activity: number;
   };
@@ -25,11 +28,13 @@ export function filterAndSortProjects<T extends FilterableProject>(
     category,
     minimumScore,
     sortBy,
+    verifiedOnly = false,
   }: {
     query: string;
     category: string;
     minimumScore: number;
     sortBy: SortOption;
+    verifiedOnly?: boolean;
   },
 ) {
   const normalizedQuery = query.trim().toLowerCase();
@@ -38,6 +43,7 @@ export function filterAndSortProjects<T extends FilterableProject>(
     .filter((project) => {
       const matchesCategory = category === 'All' || project.category === category;
       const matchesScore = project.score >= minimumScore;
+      const matchesVerification = !verifiedOnly || project.submitter?.verifiedOwner === true;
       const searchText = [
         project.title,
         project.builder,
@@ -48,7 +54,7 @@ export function filterAndSortProjects<T extends FilterableProject>(
         ...project.tags,
       ].join(' ').toLowerCase();
 
-      return matchesCategory && matchesScore && (!normalizedQuery || searchText.includes(normalizedQuery));
+      return matchesCategory && matchesScore && matchesVerification && (!normalizedQuery || searchText.includes(normalizedQuery));
     })
     .sort((a, b) => {
       if (sortBy === 'activity') return b.breakdown.activity - a.breakdown.activity;

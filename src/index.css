@@ -683,6 +683,19 @@
     margin-top: 0.75rem;
   }
 
+  .checkbox-filter {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    color: #b9bcc9;
+  }
+
+  .checkbox-filter input {
+    width: 16px;
+    height: 16px;
+    accent-color: #00e5ff;
+  }
+
   .filter-note {
     color: #7a7d8a;
     font-size: 0.78rem;
@@ -872,6 +885,18 @@
     background: rgba(255, 255, 255, 0.045);
   }
 
+  .admin-actions button:disabled {
+    cursor: wait;
+    opacity: 0.55;
+  }
+
+  .verified-inline {
+    display: inline-flex !important;
+    align-items: center;
+    gap: 0.35rem;
+    color: #efffb8 !important;
+  }
+
   .ranking-row img {
     width: 92px;
     aspect-ratio: 16 / 10;
@@ -906,12 +931,19 @@
   }
 
   .ranking-title-line span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
     color: #0b0c0f;
     background: #00e5ff;
     border-radius: 999px;
     padding: 0.12rem 0.5rem;
     font-size: 0.7rem;
     font-weight: 800;
+  }
+
+  .ranking-title-line span.verified-stage {
+    background: #d7ff64;
   }
 
   .ranking-tags {
@@ -927,6 +959,20 @@
     border-radius: 6px;
     padding: 0.25rem 0.45rem;
     font-size: 0.72rem;
+  }
+
+  .verified-project-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    width: fit-content;
+    border-radius: 999px;
+    border: 1px solid rgba(215, 255, 100, 0.4);
+    background: rgba(215, 255, 100, 0.12);
+    color: #efffb8;
+    padding: 0.42rem 0.7rem;
+    font-size: 0.86rem;
+    font-weight: 800;
   }
 
   .ranking-score {

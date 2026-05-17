@@ -54,7 +54,7 @@ export default function SubmitPage() {
   }, []);
 
   const connectGithub = () => {
-    window.location.href = getApiUrl(`/api/auth/github/start?returnTo=${encodeURIComponent(window.location.href)}`);
+    window.location.href = getApiUrl(`/api/auth/github/start?returnTo=${encodeURIComponent(`${window.location.origin}${window.location.pathname}#/submit`)}`);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -69,17 +69,29 @@ export default function SubmitPage() {
       return;
     }
 
+    if (!githubLogin) {
+      setError('Connect GitHub before submitting. Public listings require maintainer verification.');
+      setSubmission(null);
+      return;
+    }
+
     setError('');
     setIsSubmitting(true);
 
-    const apiSubmission = await createApiSubmission({
+    const apiResult = await createApiSubmission({
       repoUrl: normalizedRepoUrl,
       demoUrl: normalizedDemoUrl,
       category,
       notes,
     });
-    const github = apiSubmission ? null : await fetchGithubRepository(normalizedRepoUrl);
-    const nextSubmission = apiSubmission ?? createSubmission({
+    if (apiResult.error) {
+      setError(apiResult.error);
+      setIsSubmitting(false);
+      return;
+    }
+
+    const github = apiResult.submission ? null : await fetchGithubRepository(normalizedRepoUrl);
+    const nextSubmission = apiResult.submission ?? createSubmission({
       repoUrl: normalizedRepoUrl,
       demoUrl: normalizedDemoUrl,
       category,
@@ -111,7 +123,7 @@ export default function SubmitPage() {
               <h2>Project intake</h2>
               <div className={`submission-message ${githubLogin ? 'success' : 'neutral'}`}>
                 <b>{githubLogin ? `Verified as ${githubLogin}` : 'GitHub verification'}</b>
-                <span>{githubLogin ? 'Submissions can be checked against repository maintainer access.' : 'Connect GitHub before submitting to verify maintainer access when OAuth is configured.'}</span>
+                <span>{githubLogin ? 'Submissions are checked against repository maintainer access before public listing.' : 'Connect GitHub before submitting. Unverified projects stay out of public rankings.'}</span>
                 {!githubLogin && (
                   <button className="inline-auth-button" type="button" onClick={connectGithub}>
                     <ShieldCheck size={16} /> Connect GitHub
@@ -165,9 +177,9 @@ export default function SubmitPage() {
                   <Link to={`/projects/${slugFromRepo(submission.repoUrl)}`}>Open pending scorecard</Link>
                 </div>
               )}
-              <button type="submit" disabled={isSubmitting}>
+              <button type="submit" disabled={isSubmitting || !githubLogin}>
                 {isSubmitting ? <Loader2 size={18} className="spin-icon" /> : <Github size={18} />}
-                {isSubmitting ? 'Checking GitHub...' : 'Connect GitHub and analyze'}
+                {isSubmitting ? 'Checking GitHub...' : githubLogin ? 'Analyze verified repository' : 'Connect GitHub first'}
               </button>
             </form>
           </div>

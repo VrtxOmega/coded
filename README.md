@@ -4,6 +4,8 @@ Coded is a discovery and grading platform for developer projects. Builders submi
 
 Live site: https://vrtxomega.github.io/coded/
 
+Submit page: https://vrtxomega.github.io/coded/#/submit
+
 ## Features
 
 - GitHub repository submission with public metadata enrichment
@@ -13,6 +15,7 @@ Live site: https://vrtxomega.github.io/coded/
 - Node API with SQLite submission storage
 - Admin moderation, JSON export, and reanalysis actions
 - Optional GitHub OAuth submitter verification
+- Public submissions require GitHub OAuth when the backend is configured with OAuth credentials
 - GitHub Pages deployment for the frontend
 
 ## Tech Stack
