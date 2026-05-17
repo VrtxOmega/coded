@@ -27,8 +27,8 @@ Environment variables:
 - `CODED_API_PORT`: optional port, defaults to `8787`
 - `CODED_API_HOST`: optional bind host, defaults to `127.0.0.1`
 - `CODED_ADMIN_TOKEN`: server-only token required for moderation endpoints
-- `GITHUB_CLIENT_ID`: optional GitHub OAuth app client ID for submitter verification
-- `GITHUB_CLIENT_SECRET`: optional GitHub OAuth app client secret for submitter verification
+- `GITHUB_CLIENT_ID`: optional GitHub OAuth app client ID for no-scope owner verification
+- `GITHUB_CLIENT_SECRET`: optional GitHub OAuth app client secret for no-scope owner verification
 - `GITHUB_TOKEN`: optional server-only GitHub token for higher API limits
 - `ALLOWED_ORIGINS`: comma-separated browser origins allowed by CORS, for example `https://vrtxomega.github.io,http://localhost:3000`
 - `MAX_BODY_BYTES`: optional request body cap, defaults to `16384`
@@ -103,4 +103,4 @@ ls -lh /home/vrtxomega/backups/coded-api
 4. Set `CODED_ADMIN_TOKEN` only on that backend host.
 5. Set `ALLOWED_ORIGINS` to the GitHub Pages origin.
 6. Add `CODED_API_URL` as a GitHub repository variable, not a secret, so the Pages build points to the API.
-7. Optional: create a GitHub OAuth app and set its callback URL to `<CODED_API_URL>/auth/github/callback`, then set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` only on the backend host.
+7. Optional: create a GitHub OAuth app and set its callback URL to `<CODED_API_URL>/auth/github/callback`, then set `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` only on the backend host. The OAuth flow requests no repository scopes; public repo analysis uses public GitHub APIs.

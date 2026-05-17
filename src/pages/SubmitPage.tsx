@@ -69,12 +69,6 @@ export default function SubmitPage() {
       return;
     }
 
-    if (!githubLogin) {
-      setError('Connect GitHub before submitting. Public listings require maintainer verification.');
-      setSubmission(null);
-      return;
-    }
-
     setError('');
     setIsSubmitting(true);
 
@@ -123,7 +117,7 @@ export default function SubmitPage() {
               <h2>Project intake</h2>
               <div className={`submission-message ${githubLogin ? 'success' : 'neutral'}`}>
                 <b>{githubLogin ? `Verified as ${githubLogin}` : 'GitHub verification'}</b>
-                <span>{githubLogin ? 'Submissions are checked against repository maintainer access before public listing.' : 'Connect GitHub before submitting. Unverified projects stay out of public rankings.'}</span>
+                <span>{githubLogin ? 'Owner submissions can be verified without asking for repository write permissions.' : 'Public repos can be analyzed without GitHub access. Connect GitHub only if you want owner verification.'}</span>
                 {!githubLogin && (
                   <button className="inline-auth-button" type="button" onClick={connectGithub}>
                     <ShieldCheck size={16} /> Connect GitHub
@@ -177,9 +171,9 @@ export default function SubmitPage() {
                   <Link to={`/projects/${slugFromRepo(submission.repoUrl)}`}>Open pending scorecard</Link>
                 </div>
               )}
-              <button type="submit" disabled={isSubmitting || !githubLogin}>
+              <button type="submit" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 size={18} className="spin-icon" /> : <Github size={18} />}
-                {isSubmitting ? 'Checking GitHub...' : githubLogin ? 'Analyze verified repository' : 'Connect GitHub first'}
+                {isSubmitting ? 'Checking GitHub...' : githubLogin ? 'Analyze verified repository' : 'Analyze public repository'}
               </button>
             </form>
           </div>

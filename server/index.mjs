@@ -305,19 +305,10 @@ async function exchangeGithubCode(code) {
 
 async function verifiedRepoPermission(repoUrl, session) {
   const repoName = getRepoName(repoUrl);
-  if (!repoName || !session?.accessToken || !session.user?.login) return false;
+  if (!repoName || !session?.user?.login) return false;
 
-  const response = await fetch(`https://api.github.com/repos/${repoName}/collaborators/${session.user.login}/permission`, {
-    headers: {
-      Accept: 'application/vnd.github+json',
-      Authorization: `Bearer ${session.accessToken}`,
-      'User-Agent': 'coded-github-oauth',
-    },
-  });
-  if (!response.ok) return false;
-
-  const payload = await response.json();
-  return ['admin', 'maintain', 'write'].includes(payload.permission);
+  const [owner] = repoName.split('/');
+  return owner.toLowerCase() === session.user.login.toLowerCase();
 }
 
 function createSubmission(body, enriched, submitter = null) {
@@ -364,7 +355,6 @@ const server = createServer(async (request, response) => {
       const params = new URLSearchParams({
         client_id: githubClientId,
         state,
-        scope: 'read:user public_repo',
       });
       return authRedirect(response, `https://github.com/login/oauth/authorize?${params.toString()}`);
     }
@@ -441,10 +431,6 @@ const server = createServer(async (request, response) => {
       }
 
       const session = sessionFromRequest(request);
-      if (githubClientId && githubClientSecret && !session) {
-        return json(request, response, 401, { error: 'Connect GitHub before submitting a public project.' });
-      }
-
       const enriched = await analyzeRepository(body.repoUrl.trim());
       const verifiedOwner = await verifiedRepoPermission(body.repoUrl.trim(), session);
       const submitter = session ? { ...session.user, verifiedOwner } : null;
